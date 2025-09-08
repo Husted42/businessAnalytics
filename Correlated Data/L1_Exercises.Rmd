@@ -1,0 +1,96 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+m1<- lm(bwt ~ race + smoke + race:smoke, data = lbw)
+> anova(model2)
+>drop1(model2, test="F")
+>summary(m1)
+> m2<- lm(bwt ~ race + smoke, data = lbw)
+>drop1(model2, test="F
+
+```{r}
+install.packages("emmeans")
+library("emmeans")
+```
+
+
+# Exercises
+```{r}
+lbw <- read.table("~/Downloads/lbw.txt", header = 1)
+lbw$bwt<- as.numeric(lbw$bwt)
+lbw$race <- as.factor(lbw$race)
+lbw$smoke <- as.factor(lbw$smoke)
+lbw
+```
+
+```{r}
+addmargins(table(lbw$smoke,lbw$race)) #see the distribution of the observations.
+
+###### ----- Boxplot ----- ######
+# Boxplot with interaction between race and smoke
+boxplot(bwt ~ smoke:race, data = lbw,
+        xlab = "Race and Smoke", ylab = "Birth weight",
+        las = 1)
+
+# Compute group means
+means2 <- tapply(lbw$bwt, interaction(lbw$smoke, lbw$race), mean)
+
+# Add points for group means
+points(1:6, means2, pch = 23, cex = 0.75, bg = "red")
+
+###### ----- Scatter ----- ######
+stripchart(
+  bwt~smoke:race, data=lbw, vertical=TRUE, method="jitter", xlab="Smoke/Race",
+  ylab="Birth weight",pch=16,cex=.75, las=1, col=2:4)
+points(1:6, means2, pch = 17, cex = 1.5, col = "black")
+abline(h = mean(lbw$bwt), lty = 2)
+
+
+
+```
+$$ y_i = \beta_1 x_1 + \beta_2 x_2 + e_i $$
+
+Fit a linear model with interaction between the two factors race and
+smoke. Test whether the interaction term is statistically significan
+```{r}
+# Race, smoke and their interaction
+# m1 <- lm(bwt ~ race + smoke + race:smoke - 1, data = lbw)
+m1 <- lm(bwt ~ race + smoke + race:smoke, data = lbw)
+
+# The term race:smoke has a p-value of 0.1 so the interaction is not significant
+anova(m1)
+
+m2 <- lm(bwt ~ race + smoke, data = lbw)
+drop1(m2, test = 'F')
+summary(m2)
+
+```
+
+```{r}
+# Man kan ikke se det i R-output, men den plotter begge funktioner ved siden af hindanden når man har knit'et
+plot(fitted(m2), rstandard(m2))
+abline(0,0, col = 'Red')
+
+qqnorm(rstandard(m2))
+abline(0,1, lty=2)
+```
+
+We see that the residuals is normal distributed
+
+
+```{r}
+
+```
+
