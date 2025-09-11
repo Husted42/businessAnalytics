@@ -67,7 +67,6 @@ smoke. Test whether the interaction term is statistically significan
 ```{r}
 # Race, smoke and their interaction
 # m1 <- lm(bwt ~ race + smoke + race:smoke - 1, data = lbw)
-m1 <- lm(bwt ~ race + smoke + race:smoke, data = lbw)
 
 # The term race:smoke has a p-value of 0.1 so the interaction is not significant
 anova(m1)
@@ -91,6 +90,17 @@ We see that the residuals is normal distributed
 
 
 ```{r}
+## Option 1: manual standardization
+resid_std <- residuals(m_lmm) / sigma(m_lmm)  # sigma() gives residual SD
+fitted_vals <- fitted(m_lmm)
+
+plot(fitted_vals, resid_std,
+     xlab = "Fitted values", ylab = "Standardized residuals",
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+qqnorm(resid_std, main = "Normal Q–Q (standardized residuals)")
+qqline(resid_std, lty = 2)
 
 ```
 
