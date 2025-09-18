@@ -1,0 +1,169 @@
+---
+title: "Exercise week 2"
+output: html_document
+date: "2025-09-11"
+---
+B) Give a mathematical description of the model including all relevant assumptions.
+
+c) Analyse the effect of the factors on the maillard reaction products. Present your
+final model including an ANOVA tabl
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install.packages("tidyverse")
+# install.packages("lme4")
+
+
+library(tidyverse)
+library(dplyr)
+library(lme4)
+
+```
+
+
+```{r}
+milk <- read.csv("https://www2.compute.dtu.dk/courses/02429/Data/datafiles/milk.txt")
+milk
+```
+
+
+```{r}
+## Reshape from wide to long
+milk <- milk %>%
+  pivot_longer(
+    cols = starts_with("maill") | starts_with("taste"),
+    names_to = c(".value", "week"),
+    names_pattern = "([a-zA-Z]+)([0-9]+)"
+  ) %>%
+  mutate(
+    week = as.integer(week)  # convert week to numeric
+  )
+
+## We do not care which week
+milk <- milk %>%
+  select(-week)
+
+# Check result
+head(milk)
+```
+
+```{r}
+addmargins(table(milk$temp,milk$water)) #see the distribution of the observations.
+
+###### ----- Boxplot ----- ######
+# Boxplot with interaction between race and smoke
+boxplot(taste ~ temp:water, data = milk,
+        xlab = "Temp and activity", ylab = "Birth weight",
+        las = 1)
+
+
+# Compute group means
+means2 <- tapply(milk$taste, interaction(milk$water, milk$temp), mean)
+
+
+
+# Add points for group means
+points(1:length(means2), means2, pch = 23, cex = 0.75, bg = "red")
+
+###### ----- Scatter ----- ######
+stripchart(
+  taste~temp:water, data=milk, vertical=TRUE, method="jitter", xlab="Temp/water",
+  ylab="Taste",pch=16,cex=.75, las=1, col=2:4)
+points(1:length(means2), means2, pch = 17, cex = 1.5, col = "black")
+abline(h = mean(milk$taste), lty = 2)
+```
+
+```{r}
+addmargins(table(milk$temp,milk$water)) #see the distribution of the observations.
+
+###### ----- Boxplot ----- ######
+# Boxplot with interaction between race and smoke
+boxplot(maill ~ temp:water, data = milk,
+        xlab = "Temp and activity", ylab = "Maill",
+        las = 1)
+
+
+# Compute group means
+means2 <- tapply(milk$maill, interaction(milk$water, milk$temp), mean)
+
+
+
+# Add points for group means
+points(1:length(means2), means2, pch = 23, cex = 0.75, bg = "red")
+
+###### ----- Scatter ----- ######
+stripchart(
+  maill~temp:water, data=milk, vertical=TRUE, method="jitter", xlab="Temp/water",
+  ylab="maill",pch=16,cex=.75, las=1, col=2:4)
+points(1:length(means2), means2, pch = 17, cex = 1.5, col = "black")
+abline(h = mean(milk$maill), lty = 2)
+```
+
+$$ y_{taste_i} = \mu + \alpha_{Water_i} + \beta_{Temp_i} + \epsilon_i $$
+# Creating the model
+```{r}
+m1 <- lm(taste ~ water + temp + water:temp, data = milk)
+
+print("Anova of model 1")
+anova(m1)
+
+print("With a P-value of 0.37 we conclude that there is no significant imact of using interaction")
+m2 <- lm(taste ~ water + temp, data = milk)
+drop1(m2, test = 'F')
+summary(m2)
+
+
+```
+```{r}
+anova(m2)
+```
+
+# Actual exercis :D
+
+```{r}
+# plain linear model
+m_lm <- lm(taste ~ water * temp + maill, data = milk)
+
+# Type-II/III tests and estimated marginal means (optional)
+car::Anova(m_lm, type = 2)
+emmeans::emmeans(m_lm, ~ water * temp, cov.reduce = mean)
+```
+
+We consider the repitiion as random effect. Since rep are not of intrinsic interest, but  account for variability between replicates
+
+```{r}
+# Mixed linear model
+m_lmm <- lmer(taste ~ water + maill + (1 | rep), data = milk)
+
+anova(m_lmm)
+print("")
+print("")
+print("Summary")
+summary(m_lmm)
+```
+$$ y(taste)_{i,j} = \mu + \alpha(water)_{i,j} + \beta(temp)_{i,j} + a(rep)_i + \epsilon_{i,j} $$
+Where $ \alpha_i \sim N(0, \sigma²_{rep}), \epsilon_{i,j} \sim N(0, \sigma²) $
+
+
+On a significance level of 0.05 there are not statistically significance effect on taste for neither water or maill. 
+
+We also see a large variance whitin each group. Since there is a variance of 0.4193 between repetitions, Which shows us that there is a lot of random effect. Although we see a larger between group variance than whitin group.
+
+```{r}
+## Option 1: manual standardization
+resid_std <- residuals(m_lmm) / sigma(m_lmm)  # sigma() gives residual SD
+fitted_vals <- fitted(m_lmm)
+
+plot(fitted_vals, resid_std,
+     xlab = "Fitted values", ylab = "Standardized residuals",
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+qqnorm(resid_std, main = "Normal Q–Q (standardized residuals)")
+qqline(resid_std, lty = 2)
+
+```
+
