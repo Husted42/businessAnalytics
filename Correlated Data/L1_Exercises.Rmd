@@ -21,14 +21,18 @@ m1<- lm(bwt ~ race + smoke + race:smoke, data = lbw)
 >drop1(model2, test="F
 
 ```{r}
-install.packages("emmeans")
+# install.packages("emmeans")
 library("emmeans")
+# install.packages("multcomp")   # if not already installed
+library(multcomp)
+
 ```
 
 
 # Exercises
 ```{r}
-lbw <- read.table("~/Downloads/lbw.txt", header = 1)
+# lbw <- read.table("~/Downloads/lbw.txt", header = 1)
+lbw <- read.table("C:/Users/huste/Downloads/lbw.txt", header = 1)
 lbw$bwt<- as.numeric(lbw$bwt)
 lbw$race <- as.factor(lbw$race)
 lbw$smoke <- as.factor(lbw$smoke)
@@ -90,7 +94,53 @@ abline(0,1, lty=2)
 We see that the residuals is normal distributed
 
 
+Present estimates of the conditional and marginal means. Which are
+more useful?
+
+We cannot say that either is more useful. The conditional means shows us the mean given that a person smoke or not. 
+If we are interested to figure out wheter the smoke creates a significant impact on certain races the conditional mean is best.
+if we want to see if there are a difference in bwt whitin races regardless of wheter or not they smoke the margianl mean is best.
+
 ```{r}
+print("Conditional means\n")
+emmeans(m2, "race", by="smoke") #Conditional means
+print("Marginal means\n")
+emmeans(m2, "race") #Marginal means. Are these useful/interesting?
+
 
 ```
+```{r}
+m_black <- glht(m2, linfct = mcp(race = c("Tukey"))) # Tukey is all pairwise race comparisons
+summary(m_black)
 
+plot(m_black, col=2:7)
+```
+We test if the mean of grouo a is equal to the mean of groub b.
+
+We can reject the 0-hypothesis 
+$$ H_0: \mu_{white} = \mu_{black} $$
+and
+$$ H_0: \mu_{white} = \mu_{other} $$
+On a significane level of 5%
+
+
+The multiple comparisons (Tukey contrasts) showed significant differences between
+the \textit{white} group and both the \textit{black} and \textit{other} groups. 
+
+For \textit{white} vs.~\textit{black}, the estimated mean difference was 
+$\hat{\mu}_{\text{white}} - \hat{\mu}_{\text{black}} = 450.54$ 
+with $SE = 153.07$, yielding $t( \,\cdot\, ) = 2.94$, 
+$p = 0.0099$. Thus, we reject 
+$H_{0}: \mu_{\text{white}} = \mu_{\text{black}}$ at $\alpha = 0.05$.
+
+For \textit{white} vs.~\textit{other}, the estimated mean difference was 
+$\hat{\mu}_{\text{white}} - \hat{\mu}_{\text{other}} = 454.18$ 
+with $SE = 116.44$, yielding $t( \,\cdot\, ) = 3.90$, 
+$p = 0.0004$. Thus, we reject 
+$H_{0}: \mu_{\text{white}} = \mu_{\text{other}}$ at $\alpha = 0.05$.
+
+For \textit{black} vs.~\textit{other}, the estimated mean difference was 
+$\hat{\mu}_{\text{other}} - \hat{\mu}_{\text{black}} = -3.64$ 
+with $SE = 160.54$, yielding $t( \,\cdot\, ) = -0.02$, 
+$p = 0.9997$. Hence, we fail to reject 
+$H_{0}: \mu_{\text{black}} = \mu_{\text{other}}$.
