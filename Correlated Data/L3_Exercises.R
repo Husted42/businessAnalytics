@@ -49,5 +49,11 @@ anova(model4, model4.2, refit = FALSE)
 
 # We reject the 0-hypothis on a significance level on 5% with a p-value of 2.2e-16
 # This means that there is evidence that we are able to improve the model by including the random effect plank width
-
+"
+We compared nested linear mixed-effects models to assess the contribution of random interaction effects. 
+Removing the random effect for depth × plank did not significantly worsen model fit (chi-squared = 2.58, df = 1, p = 0.11), 
+indicating little evidence for depth-specific variability among planks. 
+In contrast, removing the random effect for plank × width resulted in a substantial decrease in model fit (chi-squared = 111.85, df = 1, p < 2.2e-16), 
+providing strong evidence that this source of variability should be retained in the model.
+"
 
