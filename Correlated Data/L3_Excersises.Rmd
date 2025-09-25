@@ -1,0 +1,183 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+Spinach heated to 90 or 100 degrees Celcius was vacuum packed and stored for 0, 1,
+or 2 weeks before the packages were opened and chill-stored in normal atmosphere
+for 0, 1, or 2 days. Then, the colour was measured on a Hunter Lab. Two of the colour
+coordinates, a and b (measuring, respectively, something like red and yellow colour),
+were recorded, and are given in the data set below. The variable batch is a blocking
+variable referring to two batches of spinach. The data is available in the file spinage.txt
+and listed here:
+
+# Load data 
+```{r}
+# install.packages("lmerTest")
+library(lmerTest)
+library(emmeans)
+```
+
+
+```{r}
+data <- read.csv("https://www2.compute.dtu.dk/courses/02429/Data/datafiles/spinage.txt")
+data$batch <- factor(data$batch) 
+data$temp <- factor(data$temp)
+data$weeks <- factor(data$weeks)
+data$days <- factor(data$days)
+
+data
+
+```
+
+# ---- your-chunk-name, fig.width=10, fig.height=8 ----
+```{r}
+
+summary(data) # Data is balanced7
+# par(mfrow = c(2, 2))  # arrange 2x2 plots in one window
+
+boxplot(a ~ batch, data = data,
+        xlab = "batch",
+        ylab = "a - color thingy",
+        las = 1,
+        col = 2:10)
+
+boxplot(a ~ temp, data = data,
+        xlab = "temp",
+        ylab = "a - color thingy",
+        las = 1,
+        col = 2:10)
+
+boxplot(a ~ weeks, data = data,
+        xlab = "weeks",
+        ylab = "a - color thingy",
+        las = 1,
+        col = 2:10)
+
+boxplot(a ~ days, data = data,
+        xlab = "days",
+        ylab = "a - color thingy",
+        las = 1,
+        col = 2:10)
+
+ftable(data$batch,data$temp,data$weeks,data$days)
+
+
+```
+We have all interactions.
+
+# Model stuff
+```{r}
+library(lme4)
+library(lmerTest)  # for p-values & Satterthwaite df
+
+# --- Base additive model ---
+m1 <- lmer(a ~ 1 + temp + weeks + days + (1|batch), REML = TRUE, data = data)
+drop1(m1, test="Chisq")
+summary(m1)
+confint(m1)
+
+# --- Try pairwise interactions, one at a time ---
+
+# temp:weeks
+# No significant interactions
+m2 <- lmer(a ~ 1 + temp + weeks + days + temp:weeks + (1|batch),
+           REML = TRUE, data = data)
+drop1(m2, test="Chisq")
+summary(m2)
+xtabs(~ temp + weeks, data = data)
+
+# temp:days
+# No significant interactions
+m3 <- lmer(a ~ 1 + temp + weeks + days + temp:days + (1|batch),
+           REML = TRUE, data = data)
+drop1(m3, test="Chisq")
+summary(m3)
+xtabs(~ temp + days, data = data)
+
+# weeks:days
+# No significant interactions
+m4 <- lmer(a ~ 1 + temp + weeks + days + weeks:days + (1|batch),
+           REML = TRUE, data = data)
+drop1(m4, test="Chisq")
+summary(m4)
+xtabs(~ weeks + days, data = data)
+```
+
+# Actual model
+```{r}
+# The one just mean swith mu
+m1 <- lmer(a ~ 1 + temp + weeks + days + (1|batch), REML = TRUE, data = data)
+drop1(m1, test="Chisq")
+summary(m1)
+confint(m1)
+```
+
+# Present parameters
+```{r}
+emmeans(m1, "temp", by = c("days"))
+plot(emmeans(m1, "temp", by = c("days")))
+
+emmeans(m1, "temp", by = c("days","weeks"))
+plot(emmeans(m1, "temp", by = c("days","weeks")))
+```
+
+
+
+# Do everything again for b
+
+```{r}
+library(lme4)
+library(lmerTest)  # for p-values & Satterthwaite df
+
+# --- Base additive model ---
+m1 <- lmer(b ~ 1 + temp + weeks + days + (1|batch), REML = TRUE, data = data)
+drop1(m1, test="Chisq")
+summary(m1)
+confint(m1)
+
+# --- Try pairwise interactions, one at a time ---
+
+# temp:weeks
+m2 <- lmer(b ~ 1 + temp + weeks + days + temp:weeks + (1|batch),
+           REML = TRUE, data = data)
+drop1(m2, test="Chisq")
+summary(m2)
+xtabs(~ temp + weeks, data = data)
+
+# temp:days
+m3 <- lmer(b ~ 1 + temp + weeks + days + temp:days + (1|batch),
+           REML = TRUE, data = data)
+drop1(m3, test="Chisq")
+summary(m3)
+xtabs(~ temp + days, data = data)
+
+# weeks:days
+m4 <- lmer(b ~ 1 + temp + weeks + days + weeks:days + (1|batch),
+           REML = TRUE, data = data)
+drop1(m4, test="Chisq")
+summary(m4)
+xtabs(~ weeks + days, data = data)
+
+```
+
+```{r}
+m1 <- lmer(b ~ 1 + temp + weeks + days + (1|batch), REML = TRUE, data = data)
+drop1(m1, test="Chisq")
+summary(m1)
+confint(m1)
+
+```
+
+```{r}
+emmeans(m1, "temp", by = c("days"))
+plot(emmeans(m1, "temp", by = c("days")))
+
+emmeans(m1, "temp", by = c("days","weeks"))
+plot(emmeans(m1, "temp", by = c("days","weeks")))
+
+```
+
+
+
