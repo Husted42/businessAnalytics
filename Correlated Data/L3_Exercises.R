@@ -57,3 +57,14 @@ In contrast, removing the random effect for plank × width resulted in a substan
 providing strong evidence that this source of variability should be retained in the model.
 "
 
+##### ----- Testing fixed effects ----- #####
+anova(model4)
+
+
+
+
+
+
+
+
+
