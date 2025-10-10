@@ -1,0 +1,45 @@
+---
+title: "L6_Exercises"
+output: html_document
+date: "2025-10-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(lme4)
+library(predictmeans)
+```
+
+
+## Cookie analysis
+# Buidling the model
+```{r}
+cookies <- read.csv("https://www2.compute.dtu.dk/courses/02429/Data/datafiles/cookies.txt")
+cookies
+
+# Build a a simple model
+cookies$assessor <- factor(cookies$assessor)
+cookies$treatm <- factor(cookies$treatm)
+model1 <- lm(quality ~ assessor + treatm + assessor:treatm,
+  data = cookies)
+
+anova(model1)
+summary(model1)
+```
+
+# Is it a good model?
+```{r}
+residplot(model1)
+```
+
+* The points are nicely spread around the horisontal line in the residual plot. 
+* We don't see any systematically devaiation from the Q-Q Residuals plot. Meaning the the points are in the quantiles we expect, if the residuals are normal distributed.
+* We are looking for outliers in the resiudalas, but the data looks nice. We don't see any points that are higher than $\sqrtr(2)$. 
+* We see that especially two data point have higher influance that the rest, namely 48 and 53, it might make sense to look into this.121
+
+
+
+
