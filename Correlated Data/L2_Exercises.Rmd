@@ -113,7 +113,7 @@ anova(m1)
 print("With a P-value of 0.37 we conclude that there is no significant imact of using interaction")
 m2 <- lm(taste ~ water + temp, data = milk)
 drop1(m2, test = 'F')
-summary(m2)
+# summary(m2)
 
 
 ```
