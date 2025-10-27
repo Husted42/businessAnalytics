@@ -15,14 +15,11 @@ Note that the `echo = FALSE` parameter was added to the code chunk to prevent pr
 ```{r}
 library(emmeans)
 library(multcomp)
-
 library(lme4)
 library(lmerTest)
-
 library(ggplot2)
 library(dplyr)
-
-
+library(predictmeans)
 ```
 
 ```{r}
@@ -197,23 +194,40 @@ We drop Repeat since it doesn't improve the model.
 ### Final model
 ```{r}
 model <- lmer(
-  Coloursaturation ~ TVset + Picture + (1 | Assessor) - 1,
+  Coloursaturation ~ TVset + Picture + (1 | Assessor),
   data = TV
 )
 
 summary(model)
+```
+The mean of our reference TVset = TV1 and Picture = Picture1 is 7.4 and there is a higly significant increase when switching to TV setting TV2 of 1.97 on average. Also the increase in Picture3 is significant on a 5% significance level, but it's not as significant as TVsetTV2. We also notice the bias that comes from each assessor, there ratings varies around the mean with a standard devation of 0.57.
 
+$$
+  y_{ikj} = \beta_0 + \beta_{TVset_i} + \beta_{Picture_j} + u_{Assessor_k} + \epsilon_{ijk}
+$$
+Where the random effect and residuals are normal distributed $u_{Assessor_k} \sim N(0, 0.32)$ and $ \epsilon_{ijk} \sim N(0, 1.38) $
+
+We want to emphasize the "on average" aspect in parameter estimation, since we are working with statistics. In repeated samples, the resulting confidence intervals would contain the true parameter 95% of the time.
+```{r}
+confint(model)
 ```
 
 
 ### Test // Diagnostic
 ```{r}
 
-
+residplot(model)
 
 ```
 
+In the normal QQ-plot we see that the points from our model falls approximatly on the line. Indicating that the residuals of our model is normal distributed. This can also bee seen in the "Fitted vs observed" plot where the lines is centered between the datapoints.  
 
+* The points are nicely spread around the horisontal line in the residual plot. 
+
+
+* We don't see any systematically deviation from the Q-Q Residuals plot. Meaning the the points are in the quantiles we expect, if the residuals are normal distributed.
+* We are looking for outlines in the residuals, but the data looks nice. We don't see any points that are higher than $\sqrtr(2)$. 
+* We see that especially two data point have higher influence that the rest, namely 48 and 53, it might make sense to look into this.121
 
 
 
