@@ -19,11 +19,21 @@ library(lme4)
 library(lmerTest)
 library(ggplot2)
 library(dplyr)
+<<<<<<< HEAD
 library(predictmeans)
+=======
+
+library(lme4)
+library(predictmeans)
+
+
+>>>>>>> e11e7c1a02054e415126f3aad3eed620507eef0c
 ```
 
 ```{r}
-setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Assignment 1")
+# setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Assignment 1")
+setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Assignment 1")
+
 getwd()
 
 list.files()
@@ -165,6 +175,41 @@ cat("p-value =", a3$`Pr(>Chisq)`[2], "\n\n")
 ```
 We fail to reject the null hypothesis $ H_0 : \beta_{Repeat:Picture} = 0 $ on a 95% confidence interval with a p-value of 1. This indicates that there is no statistically significant interaction between Repeat and Picture. This holds for all three interactions on with p-values 0.41, 0.13, 0.30.
 
+```{r}
+library(lme4)
+
+full_formula <- Coloursaturation ~ 
+  TVset + Repeat + Picture +
+  TVset:Repeat + TVset:Picture + Repeat:Picture +
+  (1 | Assessor)
+
+terms_to_drop <- c("Repeat:Picture", "TVset:Picture", "TVset:Repeat")
+
+models <- vector("list", length(terms_to_drop) + 1)
+names(models) <- c("full", paste0("drop_", terms_to_drop))
+models[[1]] <- lmer(full_formula, data = TV)
+
+for (i in seq_along(terms_to_drop)) {
+  models[[i + 1]] <- update(models[[i]], paste(". ~ . -", terms_to_drop[i]))
+}
+
+comparisons <- vector("list", length(terms_to_drop))
+names(comparisons) <- paste0("Test: drop ", terms_to_drop)
+
+for (i in seq_along(terms_to_drop)) {
+  comparisons[[i]] <- anova(models[[i]], models[[i + 1]], refit = FALSE, type = 3)
+}
+
+for (i in seq_along(comparisons)) {
+  term <- terms_to_drop[i]
+  a <- comparisons[[i]]
+  pval <- a$`Pr(>Chisq)`[nrow(a)]
+  cat("\n#################### Test -", term, "####################\n")
+  print(a)
+  cat(sprintf("p-value = %.4g\n", pval))
+}
+```
+
 
 ### Random effects
 ```{r}
@@ -217,6 +262,7 @@ confint(model)
 ```{r}
 
 residplot(model)
+<<<<<<< HEAD
 
 ```
 
@@ -228,6 +274,15 @@ In the normal QQ-plot we see that the points from our model falls approximatly o
 * We don't see any systematically deviation from the Q-Q Residuals plot. Meaning the the points are in the quantiles we expect, if the residuals are normal distributed.
 * We are looking for outlines in the residuals, but the data looks nice. We don't see any points that are higher than $\sqrtr(2)$. 
 * We see that especially two data point have higher influence that the rest, namely 48 and 53, it might make sense to look into this.121
+=======
+
+
+```
+
+In the normal QQ-plot we see that the points lays approximately on the line, this show us that the point falls within the quartiles that we expect from a normal distribution. This validates our model assumption that that the points are normal distributed. This assumption is further validated in the plot for the "residuals vs fitted" where the residual values are nicely spread out over and under the line. This tendency can also bee seen in the "fitted vs observed plot". 
+
+We also get a QQ.plot for the random effect, we get a point for each Assosor falling approximatly on the line, validation the assumption that the random effect are gaussian distributed. 
+>>>>>>> e11e7c1a02054e415126f3aad3eed620507eef0c
 
 
 
