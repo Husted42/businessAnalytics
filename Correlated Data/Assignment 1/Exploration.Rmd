@@ -19,16 +19,15 @@ library(lme4)
 library(lmerTest)
 library(ggplot2)
 library(dplyr)
-<<<<<<< HEAD
 library(predictmeans)
-=======
 
 library(lme4)
 library(predictmeans)
 
 
->>>>>>> e11e7c1a02054e415126f3aad3eed620507eef0c
+
 ```
+# Test
 
 ```{r}
 # setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Assignment 1")
@@ -262,7 +261,6 @@ confint(model)
 ```{r}
 
 residplot(model)
-<<<<<<< HEAD
 
 ```
 
