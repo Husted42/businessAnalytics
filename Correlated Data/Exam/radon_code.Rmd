@@ -1,0 +1,227 @@
+---
+title: "exam_radon"
+output: html_document
+date: "2025-11-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Init
+```{r}
+library(emmeans)
+library(multcomp)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(dplyr)
+
+library(predictmeans)
+
+library(lme4)
+library(predictmeans)
+
+
+```
+
+```{r}
+setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
+# setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Exam/")
+
+getwd()
+
+list.files()
+df<-read.table("Radon_MN.csv",header = T)
+head(df)
+```
+
+# I. Exploratory analysis
+```{r}
+df$county <- as.factor(df$county)
+df$floor <- as.factor(df$floor)
+unique(df$county)
+unique(df$floor)
+summary(df$u)
+summary(df$y)
+```
+
+We see that there are 85 different counties and floor is a binary variable 0 meaning basement and 1 meaning not basement.
+
+```{r}
+xtabs(~ county, df)
+```
+The data is not balanced
+
+
+```{r}
+xtabs(~ county, df)
+xtabs(~ floor, df)
+
+barplot(
+  xtabs(~ county, df),
+  las = 2,                # rotate county labels for readability
+  col = "lightblue",
+  main = "Number of Observations per County",
+  ylab = "Count"
+)
+
+barplot(
+  xtabs(~ floor, df),
+  las = 2,                # rotate county labels for readability
+  col = "lightblue",
+  main = "Number of Observations per floor",
+  ylab = "Count"
+)
+
+```
+We see that neither of the categorical items are balanced. With 5 counties having many samples: 26 and 70 are above 100 while 2, 19 and 80 are above 50. And 83% of the data having floor = 0.
+
+```{r}
+vars <- c("floor", "county")
+
+# par(mfrow = c(2, 2))
+
+for (v in vars) {
+  formula <- as.formula(paste("y ~", v))
+  
+  boxplot(formula, data = df,
+          main = paste("log(Radon) by", v),
+          xlab = v,
+          ylab = "log(Radon)",
+          col = "lightblue")
+
+          means <- tapply(df$y, df$county, mean)
+          points(1:length(means), means, pch = 19, col = "black")
+  
+  }
+
+par(mfrow = c(1, 1))
+```
+
+It's not clear whethere there is a significant  between group variance, we see that we have overlap between the inter quartile ranges for the two groups.  
+
+TODO : Uranium vs. log(Radon)
+
+# II. Modeling
+## Building the model
+Target : y
+Uranium : u.full
+Floor : x
+County : county
+### Model 0 - Mean
+We start with a simple model and build up from there.
+We see that the mean is signifincantly different from 0. We do not accept $ H_0 : \mu = 0 $
+$$ y_{i} = \mu + \epsilon_i, \epsilon_i \sim N(0, \sigma^2) $$
+```{r}
+model_0 <- lm(y ~ 1, df)
+summary(model_0)
+```
+### Model 1 - Floor
+$$ y_{i} = \mu + \alpha_i + \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2) $$
+```{r}
+model_1 <- lm(y ~ floor, df)
+anova(model_1)
+```
+
+### Model 2 - Uranium
+$$ y_{i} = \mu + \alpha_i + \beta x_i+ \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2) $$
+```{r}
+model_2 <- lm(y ~ floor + u.full , df)
+anova(model_2)
+```
+### Model 3 - Random effect
+$$ y_{i} = \mu + \alpha_i + \beta x_i + \gamma_i + \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2_{\epsilon}), \quad \gamma_i \sim N(0, \sigma^2_{\gamma}) $$
+```{r}
+model_3 <- lmer(y ~ floor + u.full + (1|county) , df)
+ranova(model_3)
+```
+
+
+
+
+### Model 4 & 5 - Random slopes
+We add a random slope to the model to allow the impact of the fixed effects to vary across county.
+
+**Random slope for predictor floor**
+By including a random slope for the predictor x, we allow its effect on radon levels to depend on the county. This tests whether counties differ in how strongly basement measurements raise or lower radon levels.
+
+```{r}
+model_4 <- lmer(y ~ floor + u.full + (floor|county) , df)
+ranova(model_4)
+```
+
+
+
+The addition of a random-slope term is not statistically significant (p = 0.062). Therefore, the basement effect appears to be consistent across counties, and the random-intercept model is adequate.
+
+### Full model
+$$ y_{i} = \mu + \alpha_i + \beta x_i + \gamma_i + \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2_{\epsilon}), \quad \gamma_i \sim N(0, \sigma^2_{\gamma}) $$
+
+```{r}
+model <- lmer(y ~ floor + u.full + (1|county) , df)
+summary(model)
+```
+## Results 
+$$\hat{\sigma_{\epsilon}} = 0.7584, \quad \hat{\sigma_{\gamma}} = 0.1564  $$
+We see that only 4 % of the variance is explained by the random effect.
+$$ \frac{0.024}{0.575 + 0.024} = 4 \% $$
+
+```{r}
+confint(model)
+```
+Given our observation we are 95% confident that the population mean $\hat{\mu}$ are between (1.39, 1.54) given floor = 0 and u.full = 0. The slope $ \hat{\gamma} $ are between (0.54, 0.90). And that the effect of floor=1 are between (-08, -0.53)
+
+## Diagnostics
+```{r}
+residplot(model)
+```
+## Comparison
+Look at the change to the diagnostic plots as complexity increasses
+```{r}
+qqnorm(resid(model_0))
+qqline(resid(model_0))
+qqnorm(resid(model_1))
+qqline(resid(model_1))
+qqnorm(resid(model_2))
+qqline(resid(model_2))
+qqnorm(resid(model_3))
+qqline(resid(model_3))
+```
+
+Comparrison table
+```{r}
+AIC(model_0, model_1, model_2, model_3)
+BIC(model_0, model_1, model_2, model_3)
+logLik(model_0)
+logLik(model_1)
+logLik(model_2)
+logLik(model_3)
+
+```
+
+
+| Model   | df | logLik    | AIC      | BIC      |
+| ------- | -- | --------- | -------- | -------- |
+| model_0 | 2  | –1157.740 | 2319.479 | 2329.126 |
+| model_1 | 3  | –1123.512 | 2253.025 | 2267.495 |
+| model_2 | 4  | –1064.810 | 2137.621 | 2156.914 |
+| model_3 | 5  | –1067.093 | 2144.186 | 2168.303 |
+
+We want AIC and BIC to be as small as possible, but it seems that both AIC and BIC is larger for model 2 than 3.
+$$ \text{AIC} = -2 \log L(\hat{\theta}) + 2p, $$
+$$ \text{BIC} = -2 \log L(\hat{\theta}) + (\log n)\, p $$
+
+This is partially due to the increase in the complexity penalty since p increases by 1, but we also see an increase in log likelyhood. 
+
+Even though the variance of the residuals decrease from $0.772^2 = 0.596$ in model_2 to $0.758^2 = 0.575$ in model_3, we get an additional variance from the random effect of $0.156^2 = 0.024$ meaning that the overall variance increases hich decreasses the log-likeyhood function. 
+
+```{r}
+summary(model_2)
+summary(model_3)
+```
+
+
+
+# III. Results
+
