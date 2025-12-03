@@ -1,0 +1,212 @@
+---
+title: "Part 2"
+output: html_document
+date: "2025-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Init
+```{r}
+library(emmeans)
+library(multcomp)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(dplyr)
+library(predictmeans)
+library(lattice) # to visualize random effects
+```
+
+```{r}
+setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
+# setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Exam/")
+
+getwd()
+
+list.files()
+rats_short <- read.table("Rats_Box.txt", header = 1, sep = ",")
+head(rats_short)
+
+
+
+```
+
+
+# i) Prepare for analysis
+We want to measure the gain of each rat, so our response variable should only be the gain y_0,...,y_4. But we need to use y_0 as an adjusting covariate in the model, ie. we should keep it as a feature. Practically this means that we filter out y_0, convert the data to long format, then join y_0 back again.
+ 
+
+```{r}
+# Pivot to long format
+rats_long <- rats_short %>%
+  pivot_longer(cols = starts_with("y"),
+               names_to = "Week",
+               values_to = "Value") %>%
+  mutate(
+    Week = as.numeric(substr(Week, 2, 2))
+  ) %>%
+  arrange(Rat, Week)
+
+# Extract the first week
+rats_y0 <- rats_long %>%
+  filter(Week == 0) %>%
+  select(Rat, Trt, y0 = Value)
+
+# Filter out the first week
+rats_gain <- rats_long %>%
+  filter(Week != 0)
+
+# Left join the y0 values
+rats_long_gain <- rats_gain %>%
+  left_join(rats_y0, by = c("Rat", "Trt"))
+
+# NOTE : We should include y_0 in the report
+rats <- rats_long_gain
+rats$WeekQ <- rats$Week
+rats$Week <- paste0("y", rats$Week)
+rats$Rat <- as.factor(rats$Rat)
+rats$Trt <- as.factor(rats$Trt)
+rats$Week <- as.factor(rats$Week)
+colnames(rats)[colnames(rats) == 'y0'] <- 'InitWheight'
+colnames(rats)[colnames(rats) == 'Value'] <- 'Gain'
+rats <- rats %>%
+  select(Rat, Trt, Week, WeekQ, InitWheight, Gain)
+
+rats$InitWheight <- as.numeric(rats$InitWheight)
+rats$Gain <- as.numeric(rats$Gain)
+
+head(rats)
+
+
+```
+
+
+```{r}
+ggplot(rats, aes(x = Week, y = Gain, color = Trt, group = Rat)) +
+  geom_line(alpha = 0.3) +
+  geom_point() +
+  labs(title = "Weight Gain of Rats Over Weeks by Treatment",
+       x = "Week",
+       y = "Weight Gain") +
+  theme_minimal()
+```
+```{r}
+ggplot(rats, aes(x = Week, y = Gain, color = Trt, group = Trt)) +
+  stat_summary(fun = mean, geom = "line", size = 1.2) +
+  stat_summary(fun = mean, geom = "point", size = 2.5) +
+  labs(title = "Mean Weight Gain of Rats Over Weeks by Treatment",
+       x = "Week",
+       y = "Mean Weight Gain") +
+  theme_minimal()
+```
+
+# ii)  Do an exploratory analysis of the data, numerical and graphical
+
+```{r}
+#str(rats)
+summary(rats$InitWheight)
+summary(rats$Gain)
+```
+
+When just looking at the distribution of gain, without accounting for treatment, the data look appproximatly nomrlal distributed.
+```{r}
+ggplot(rats, aes(Gain)) +
+  geom_histogram(bins = 15, color="black", fill="grey70") +
+  theme_minimal() +
+  labs(title = "Distribution of Weight Gain")
+```
+
+The within-treatment variability seems to be larger for treatments than the control group. The the difference in mean are smaller between control group and treatment-2, with a slight increase in quantiles ranges and variability. It not clear if the effect of treatment-2 is significant from the plot. However it looks like there is a noticeably difference between treatment-3 and the control group, which indicates that we the effect of treatment-3 is significant. But we cannot draw any conclusions.
+```{r}
+ggplot(rats, aes(x = Trt, y = Gain, fill = Trt)) +
+  geom_boxplot() +
+  labs(title = "Gain by Treatment") +
+  theme_minimal()
+```
+
+By this plot it doesn't look like time alone has a significant effect on the increase in weights. Other than there seems to be an increase in the variability between week 1-2 and 3-4.
+```{r}
+ggplot(rats, aes(x = Week, y = Gain)) +
+  geom_boxplot() +
+  labs(title = "Gain by Week", x = "Week") +
+  theme_minimal()
+```
+
+We check to see if there are correlations between the initial weights and gain. But with a correlation of 0.02, there is no clear evidence of this as is also seen in the figure.
+```{r}
+cor(rats$InitWheight, rats$Gain)
+```
+```{r}
+rats %>%
+  dplyr::group_by(Rat, Trt) %>%
+  dplyr::summarise(mean_gain = mean(Gain), InitWheight = first(InitWheight), .groups = "drop") %>%
+  ggplot(aes(x = InitWheight, y = mean_gain, color = Trt)) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", se = FALSE) +
+    theme_minimal() +
+    labs(title = "Initial Weight vs. Gain")
+```
+TODO : Interaction plot for group and time
+
+```{r}
+ggplot(rats, aes(x = Week, y = Gain, color = Trt, group = Trt)) +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun = mean, geom = "point") +
+  labs(
+    x = "Week",
+    y = "Mean Gain",
+    color = "Trt",
+    title = "Interaction Plot: Treatment by Week"
+  ) +
+  theme_minimal()
+```
+
+
+# iii) Formulate a mixed model
+We will build a mixed model from the button up, starting with the mean and a random effect for the rats
+## Model 0 - Random effect
+```{r}
+mll_0 <- lmer(Gain ~ 1 + (1|Rat), data = rats)
+ranova(mll_0)
+```
+## Model 1 - Adding treatment
+```{r}
+mll_1 <- lmer(Gain ~ Trt + (1|Rat), data = rats)
+summary(mll_1)
+anova(mll_1)
+ranova(mll_1)
+```
+## Model 2 - Adding fixed Week
+```{r}
+mll_2 <- lmer(Gain ~ Trt + Week + (1|Rat), data = rats)
+anova(mll_2)
+```
+## Model 3 - Adding interaction
+```{r}
+mll_3 <- lmer(Gain ~ Trt + Week + Trt:Week + (1|Rat), data = rats)
+anova(mll_3)
+```
+
+### Diagnostic
+```{r}
+dotplot(ranef(mll_3, condVar=TRUE), strip = FALSE, ylab="Rat") 
+ranef_model_3 <- ranef(mll_3, condVar=TRUE)
+```
+
+```{r}
+residplot(mll_3)
+```
+
+## Model 4 - Numerical Weeks
+```{r}
+mll_4 <- lmer(Gain ~ Trt + WeekQ + Trt:Week + (1|Rat), data = rats)
+anova(mll_4)
+ranova(mll_4)
+```
+```{r}
+residplot(mll_4)
+```
+

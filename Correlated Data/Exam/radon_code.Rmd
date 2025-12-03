@@ -16,13 +16,8 @@ library(lme4)
 library(lmerTest)
 library(ggplot2)
 library(dplyr)
-
 library(predictmeans)
-
-library(lme4)
-library(predictmeans)
-
-
+library(lattice) # to visualize random effects
 ```
 
 ```{r}
@@ -75,10 +70,33 @@ barplot(
 )
 
 ```
+
+```{r}
+hist(df$u.full, breaks = 50, col = "lightgray", main = "Distribution of u.full")
+hist(df$y, breaks = 50, col = "lightgray", main = "Distribution of log(radon)")
+```
+
+
+```{r}
+ggplot(df, aes(x = u.full, y = y, color = floor)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal() +
+  labs(title = "u.full vs y by floor")
+
+```
+
+```{r}
+cor(df[, c("u.full", "y")])
+
+```
+
+
+
 We see that neither of the categorical items are balanced. With 5 counties having many samples: 26 and 70 are above 100 while 2, 19 and 80 are above 50. And 83% of the data having floor = 0.
 
 ```{r}
-vars <- c("floor", "county")
+vars <- c("x", "county")
 
 # par(mfrow = c(2, 2))
 
@@ -101,7 +119,46 @@ par(mfrow = c(1, 1))
 
 It's not clear whethere there is a significant  between group variance, we see that we have overlap between the inter quartile ranges for the two groups.  
 
-TODO : Uranium vs. log(Radon)
+
+```{r}
+
+
+radon_floor_0 <- df %>% 
+  filter(floor == 0)
+
+ggplot(radon_floor_0, aes(x = u.full, y = y)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 1.2) +
+  labs(
+    x = "u.full",
+    y = "y",
+    title = "floor = 0 : u.full vs y with Regression Line"
+  ) +
+  theme_minimal()
+
+model <- lm(y ~ u.full, data = radon_floor_0)
+summary(model)
+
+```
+
+```{r}
+radon_floor_0 <- df %>% 
+  filter(floor == 1)
+
+ggplot(radon_floor_0, aes(x = u.full, y = y)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 1.2) +
+  labs(
+    x = "u.full",
+    y = "y",
+    title = "floor = 1 : u.full vs y with Regression Line"
+  ) +
+  theme_minimal()
+
+model <- lm(y ~ u.full, data = radon_floor_0)
+summary(model)
+
+```
 
 # II. Modeling
 ## Building the model
@@ -115,6 +172,8 @@ We see that the mean is signifincantly different from 0. We do not accept $ H_0 
 $$ y_{i} = \mu + \epsilon_i, \epsilon_i \sim N(0, \sigma^2) $$
 ```{r}
 model_0 <- lm(y ~ 1, df)
+anova(model_0)
+
 summary(model_0)
 ```
 ### Model 1 - Floor
@@ -137,6 +196,10 @@ model_3 <- lmer(y ~ floor + u.full + (1|county) , df)
 ranova(model_3)
 ```
 
+```{r}
+dotplot(ranef(model_3, condVar=TRUE), strip = FALSE, ylab="County") 
+ranef_model_3 <- ranef(model_3, condVar=TRUE)
+```
 
 
 
@@ -147,22 +210,40 @@ We add a random slope to the model to allow the impact of the fixed effects to v
 By including a random slope for the predictor x, we allow its effect on radon levels to depend on the county. This tests whether counties differ in how strongly basement measurements raise or lower radon levels.
 
 ```{r}
-model_4 <- lmer(y ~ floor + u.full + (floor|county) , df)
+model_4 <- lmer(y ~ x + u.full + (x|county) , df)
 ranova(model_4)
+
 ```
 
-
-
 The addition of a random-slope term is not statistically significant (p = 0.062). Therefore, the basement effect appears to be consistent across counties, and the random-intercept model is adequate.
+
+```{r}
+ranef_m4 <- ranef(model_4)$county
+library(ggplot2)
+ggplot(ranef_m4, aes(x = x, y = `(Intercept)`)) +
+  geom_point() +
+  geom_smooth(method = "lm",
+              se = FALSE) +
+  labs(title = "Random Slopes and Intercepts for Counties",
+       x = "Slope for floor",
+       y = "Intercept") +
+#  xlim(-0.6, 0.6) +
+#  ylim(-0.4, 0.4) +
+  coord_fixed() +   # <-- makes width = height
+  theme_minimal()
+```
+The above graph show the the slopes and intercept for each cluster. We don't see clear patterns in the points exeot one straight line. I won't look into further detail as the effect of the random slope are not significant.
+
+**Random slope for predictor u.full**
+We skip this since there is no within-county variation.
 
 ### Full model
 $$ y_{i} = \mu + \alpha_i + \beta x_i + \gamma_i + \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2_{\epsilon}), \quad \gamma_i \sim N(0, \sigma^2_{\gamma}) $$
 
 ```{r}
-model <- lmer(y ~ floor + u.full + (1|county) , df)
+model <- lmer(y ~ floor + lu.full + (1|county) , df)
 summary(model)
 ```
-## Results 
 $$\hat{\sigma_{\epsilon}} = 0.7584, \quad \hat{\sigma_{\gamma}} = 0.1564  $$
 We see that only 4 % of the variance is explained by the random effect.
 $$ \frac{0.024}{0.575 + 0.024} = 4 \% $$
@@ -172,24 +253,35 @@ confint(model)
 ```
 Given our observation we are 95% confident that the population mean $\hat{\mu}$ are between (1.39, 1.54) given floor = 0 and u.full = 0. The slope $ \hat{\gamma} $ are between (0.54, 0.90). And that the effect of floor=1 are between (-08, -0.53)
 
+
+
+
 ## Diagnostics
 ```{r}
 residplot(model)
 ```
+```{r}
+df[299, ]
+df[149, ]
+
+predict(model, newdata = df[299, ])
+predict(model, newdata = df[149, ])
+predict(model, newdata = df[299, ], re.form = NA)
+predict(model, newdata = df[149, ], re.form = NA)
+
+```
+
+
 ## Comparison
 Look at the change to the diagnostic plots as complexity increasses
 ```{r}
 qqnorm(resid(model_0))
 qqline(resid(model_0))
-qqnorm(resid(model_1))
-qqline(resid(model_1))
-qqnorm(resid(model_2))
-qqline(resid(model_2))
 qqnorm(resid(model_3))
 qqline(resid(model_3))
 ```
 
-Comparrison table
+Comparison table
 ```{r}
 AIC(model_0, model_1, model_2, model_3)
 BIC(model_0, model_1, model_2, model_3)
@@ -199,6 +291,7 @@ logLik(model_2)
 logLik(model_3)
 
 ```
+
 
 
 | Model   | df | logLik    | AIC      | BIC      |
@@ -224,4 +317,319 @@ summary(model_3)
 
 
 # III. Results
+## III a) Present a plot analogous to the one in Figure 1, with the estimated response means per county
+
+```{r}
+model <- lmer(y ~ floor + u.full + (1|county) , df)
+df_pred <- df
+df_pred_before_random <- df
+df_pred$y <- predict(model, newdata = df)
+df_pred_before_random$y <- predict(model_2, newdata = df)
+
+
+
+invisible({
+  attach(df)
+  (J <- length(unique(county.name)))
+  (ybarbar = mean(y))
+  
+  (sample.size <- as.vector(table(county)))
+  (sample.size.jittered <- sample.size*exp(runif (J, -.1, .1)))
+  (cty.mns = tapply(y,county,mean))
+  (cty.vars = tapply(y,county,var))
+  (cty.sds = mean(sqrt(cty.vars[!is.na(cty.vars)]))/sqrt(sample.size))
+  (cty.sds.sep = sqrt(tapply(y,county,var)/sample.size))
+  
+  par(mfrow=c(1,1))
+  plot (sample.size.jittered, cty.mns, cex.lab=.9, cex.axis=1,
+        xlab="sample size in county j",
+        ylab="Mean log radon in county j",
+        pch=20, log="x", cex=.3, mgp=c(1.5,.5,0),
+        ylim=c(0,3.2), yaxt="n", xaxt="n")
+  axis (1, c(1,3,10,30,100), cex.axis=.9, mgp=c(1.5,.5,0))
+  axis (2, seq(0,3), cex.axis=.9, mgp=c(1.5,.5,0))
+  for (j in 1:J){
+    lines (rep(sample.size.jittered[j],2),
+           cty.mns[j] + c(-1,1)*cty.sds[j], lwd=.5)
+    #         cty.mns[j] + c(-1,1)*mean(cty.sds[!is.na(cty.sds)]), lwd=.5)
+  }
+  abline(h=mean(cty.mns),lwd=.5 )
+  title("Observed mean response values per county (data)",cex.main=.9, line=1)
+  
+  cty.mns[cty.mns==max(cty.mns)]
+  cty.mns[cty.mns==min(cty.mns)]
+  
+  points(sample.size.jittered[36],cty.mns[36],cex=2) #max
+  points(sample.size.jittered[37],cty.mns[37],cex=2) #min
+  detach(df)
+  
+  attach(df_pred)
+  (J <- length(unique(county.name)))
+  (ybarbar = mean(y))
+  
+  (sample.size <- as.vector(table(county)))
+  (sample.size.jittered <- sample.size*exp(runif (J, -.1, .1)))
+  (cty.mns = tapply(y,county,mean))
+  (cty.vars = tapply(y,county,var))
+  (cty.sds = mean(sqrt(cty.vars[!is.na(cty.vars)]))/sqrt(sample.size))
+  (cty.sds.sep = sqrt(tapply(y,county,var)/sample.size))
+  
+  par(mfrow=c(1,1))
+  plot (sample.size.jittered, cty.mns, cex.lab=.9, cex.axis=1,
+        xlab="sample size in county j",
+        ylab="Mean log radon in county j",
+        pch=20, log="x", cex=.3, mgp=c(1.5,.5,0),
+        ylim=c(0,3.2), yaxt="n", xaxt="n")
+  axis (1, c(1,3,10,30,100), cex.axis=.9, mgp=c(1.5,.5,0))
+  axis (2, seq(0,3), cex.axis=.9, mgp=c(1.5,.5,0))
+  for (j in 1:J){
+    lines (rep(sample.size.jittered[j],2),
+           cty.mns[j] + c(-1,1)*cty.sds[j], lwd=.5)
+    #         cty.mns[j] + c(-1,1)*mean(cty.sds[!is.na(cty.sds)]), lwd=.5)
+  }
+  abline(h=mean(cty.mns),lwd=.5 )
+  title("Observed mean response values per county full_model",cex.main=.9, line=1)
+  
+  cty.mns[cty.mns==max(cty.mns)]
+  cty.mns[cty.mns==min(cty.mns)]
+  
+  points(sample.size.jittered[36],cty.mns[36],cex=2) #max
+  points(sample.size.jittered[37],cty.mns[37],cex=2) #min
+  
+  # print(cty.sds)
+  
+  detach(df_pred)
+  
+  attach(df_pred_before_random)
+  (J <- length(unique(county.name)))
+  (ybarbar = mean(y))
+  
+  (sample.size <- as.vector(table(county)))
+  (sample.size.jittered <- sample.size*exp(runif (J, -.1, .1)))
+  (cty.mns = tapply(y,county,mean))
+  (cty.vars = tapply(y,county,var))
+  (cty.sds = mean(sqrt(cty.vars[!is.na(cty.vars)]))/sqrt(sample.size))
+  (cty.sds.sep = sqrt(tapply(y,county,var)/sample.size))
+  
+  par(mfrow=c(1,1))
+  plot (sample.size.jittered, cty.mns, cex.lab=.9, cex.axis=1,
+        xlab="sample size in county j",
+        ylab="Mean log radon in county j",
+        pch=20, log="x", cex=.3, mgp=c(1.5,.5,0),
+        ylim=c(0,3.2), yaxt="n", xaxt="n")
+  axis (1, c(1,3,10,30,100), cex.axis=.9, mgp=c(1.5,.5,0))
+  axis (2, seq(0,3), cex.axis=.9, mgp=c(1.5,.5,0))
+  for (j in 1:J){
+    lines (rep(sample.size.jittered[j],2),
+           cty.mns[j] + c(-1,1)*cty.sds[j], lwd=.5)
+    #         cty.mns[j] + c(-1,1)*mean(cty.sds[!is.na(cty.sds)]), lwd=.5)
+  }
+  abline(h=mean(cty.mns),lwd=.5 )
+  title("Observed mean response values per county Model 1",cex.main=.9, line=1)
+  
+  cty.mns[cty.mns==max(cty.mns)]
+  cty.mns[cty.mns==min(cty.mns)]
+  
+  points(sample.size.jittered[36],cty.mns[36],cex=2) #max
+  points(sample.size.jittered[37],cty.mns[37],cex=2) #min
+  detach(df_pred_before_random)
+})
+
+```
+
+There should be at max two differnt outcomes county
+```{r}
+df_pred %>%
+  group_by(county) %>%
+  summarise(n_unique_y = n_distinct(y)) %>% head(10)
+```
+```{r}
+df_pred %>%
+  group_by(county) %>%
+  summarise(
+    y_values = list(sort(unique(y))),
+    diff_y = diff(sort(unique(y)))
+  ) %>% head(10)
+```
+
+
+```{r}
+overall_mean <- mean(df_pred$y)
+
+df_pred %>%
+  group_by(county) %>%
+  summarise(
+    county_mean = mean(y),
+    diff_from_overall = county_mean - overall_mean
+  ) %>%
+  arrange(desc(diff_from_overall)) %>%
+  head(10)
+```
+
+
+## III b) Present a plot of the county level of uranium in the horizontal axis, and the estimated regression intercepts with CI, in the vertical axis. Additionally, one with the estimated regression slopes with CI.
+
+
+```{r}
+model <- lmer(y ~ floor + u.full + (1|county) , df)
+
+library(lme4)
+library(ggplot2)
+
+# Random intercepts with conditional variance
+re  <- ranef(model, condVar=TRUE)
+u   <- attr(re$county, "postVar")   # 1x1xN array of variances
+
+# Random-intercept estimates
+intercepts <- re$county[, "(Intercept)"]
+
+# Std. errors from conditional modes
+se <- sqrt(sapply(1:dim(u)[3], function(i) u[,,i]))
+
+# Build dataframe
+df_plot <- data.frame(
+  county    = rownames(re$county),
+  intercept = intercepts,
+  lower     = intercepts - 1.96 * se,
+  upper     = intercepts + 1.96 * se
+)
+
+u_by_county <- aggregate(u.full ~ county, data=df, FUN=unique)
+names(u_by_county)[2] <- "u_full_county"
+
+df_plot$u_full <- u_by_county$u_full_county[
+  match(df_plot$county, u_by_county$county)
+]
+
+ggplot(df_plot, aes(x = u_full, y = intercept)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+  xlab("County-level uranium (u.full)") +
+  ylab("Random intercept with 95% CI") +
+  ylim(-0.5, 0.5) +
+  theme_bw()
+
+
+```
+
+```{r}
+# Posterior variance for each county's random intercept
+post_var <- sapply(1:dim(u)[3], function(i) u[,,i])
+
+# Build a dataframe with county, variance, SE, and intercept
+var_by_county <- data.frame(
+  county    = rownames(re$county),
+  intercept = re$county[, "(Intercept)"],
+  var       = post_var,
+  se        = sqrt(post_var)
+)
+
+# Counties with the *lowest* conditional variance
+var_by_county_lowest <- var_by_county %>% 
+  arrange(var)
+
+# View the top few with lowest variance
+head(var_by_county_lowest, 10)
+
+var_by_county_highest <- var_by_county %>% 
+  arrange(desc(var))
+
+# View the top counties with the largest variance
+head(var_by_county_highest, 10)
+```
+
+
+## III c) Present a plot of the county level of uranium in the horizontal axis, and the estimated regression intercepts with CI, in the vertical axis. Additionally, one with the estimated regression slopes with CI.
+
+```{r}
+# 6 in sample
+# 6 out of sample
+
+new_data <- data.frame(
+  county = c(
+            35,35,
+            43,43,
+            65,65,
+            100,100,
+            101,101,
+            102,102
+            ),
+  floor  = c(
+            0,1,
+            0,1,
+            0,1,
+            0,1,
+            0,1,
+            0,1
+            ),
+  u.full = c(
+            -0.8818289, -0.8818289,
+            0.013764829,0.013764829, 
+            0.52802487,0.52802487, 
+            -1,-1, 
+            0,0,
+            0.7,0.7
+            )
+)
+
+
+new_data$floor  <- factor(new_data$floor)
+new_data$county <- factor(new_data$county)
+new_data$pred_conditional <- predict(model_3, newdata = new_data, re.form = NA)
+
+new_data
+
+```
+
+```{r}
+# install.packages("merTools")
+library(merTools)
+
+new_data$floor  <- factor(new_data$floor)
+new_data$county <- factor(new_data$county)
+
+pred_ci <- predictInterval(
+  model,
+  newdata = new_data,
+  which   = "full",
+  level   = 0.95,
+  n.sims  = 1000,
+  include.resid.var = TRUE
+)
+
+new_data <- cbind(new_data, pred_ci)
+
+```
+
+
+```{r}
+library(lme4)
+
+## Design matrix for the fixed-effects part of the model
+## This must match the fixed-effects formula: ~ floor + u.full
+X <- model.matrix(~ floor + u.full, data = new_data)
+
+## Fixed-effect estimates and their covariance matrix
+beta_hat <- fixef(model)
+V_beta   <- vcov(model)
+
+## Standard errors of the linear predictor X * beta
+pred_se <- sqrt(diag(X %*% V_beta %*% t(X)))
+
+## 95% confidence intervals
+new_data$pred_se  <- pred_se
+new_data$lower_ci <- new_data$pred_conditional - 1.96 * pred_se
+new_data$upper_ci <- new_data$pred_conditional + 1.96 * pred_se
+
+library(ggplot2)
+
+ggplot(new_data, aes(x = u.full, y = pred_conditional, colour = county)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0) +
+  xlab("u.full") +
+  ylab("Predicted y (95% CI, fixed effects only)") +
+  theme_bw()
+
+
+```
 

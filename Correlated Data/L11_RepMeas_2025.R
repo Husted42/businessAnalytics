@@ -26,7 +26,7 @@ options(width = 140)
 #    Covariance with structure corresponding to Compound symmetry.
 
 #0.read data
-rats<-read.csv("Data/rats.txt") #file in long format
+rats<-read.csv("https://www2.compute.dtu.dk/courses/02429/Data/datafiles/rats.txt") #file in long format
 str(rats) #'data.frame':	300 obs. of  4 variables:
 # file already in long form
 

@@ -30,8 +30,8 @@ library(predictmeans)
 # Test
 
 ```{r}
-# setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Assignment 1")
-setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Assignment 1")
+setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Assignment 1")
+# setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Assignment 1")
 
 getwd()
 
