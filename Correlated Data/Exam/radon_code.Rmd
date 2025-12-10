@@ -21,8 +21,8 @@ library(lattice) # to visualize random effects
 ```
 
 ```{r}
-setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
-# setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Exam/")
+# setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
+setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Exam/")
 
 getwd()
 
@@ -241,7 +241,7 @@ We skip this since there is no within-county variation.
 $$ y_{i} = \mu + \alpha_i + \beta x_i + \gamma_i + \epsilon_i , \quad \epsilon_i \sim N(0, \sigma^2_{\epsilon}), \quad \gamma_i \sim N(0, \sigma^2_{\gamma}) $$
 
 ```{r}
-model <- lmer(y ~ floor + lu.full + (1|county) , df)
+model <- lmer(y ~ floor + u.full + (1|county) , df)
 summary(model)
 ```
 $$\hat{\sigma_{\epsilon}} = 0.7584, \quad \hat{\sigma_{\gamma}} = 0.1564  $$
