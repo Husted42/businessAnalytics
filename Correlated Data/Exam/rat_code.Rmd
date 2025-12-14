@@ -25,8 +25,7 @@ library(tidyverse)
 ```
 
 ```{r}
-# setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
-setwd("/home/husted42/Documents/github/businessAnalytics/Correlated Data/Exam/")
+setwd("C:/Users/huste/Documents/Github/businessAnalytics/Correlated Data/Exam")
 
 getwd()
 
@@ -455,6 +454,11 @@ summary(M2)
 library(emmeans) #estimated response values
 emmeans(M3, "Trt", by="WeekQ", data=rats)
 
+```
+
+```{r}
+intervals(M2, which = "fixed")
+M2$modelStruct$corStruct
 ```
 
 
