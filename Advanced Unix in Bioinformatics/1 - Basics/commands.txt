@@ -89,4 +89,4 @@ grep -E '_RAT' orphans.sp | grep -E 'PRECURSOR' |  wc -l
 awk '$2 > 0 {print > "ex1.pos"} $2 < 0 {print > "ex1.neg"}' ex1.res
 
 # - Calculate ((356+51)*123-12765)/56 on the command line. Design your command so when you press ENTER to execute, it computes the result and shows the prompt waiting for your next command.
-echo $((((356+51)*123-12765)/56))
+echo $((((356+51)*123-12765)/56))# - Calculate ((356+51)*123-12765)/56 on the command line. Design your command so when you press ENTER to execute, it computes the result and shows the prompt waiting for your next command.
