@@ -1,0 +1,92 @@
+# Download files:
+curl -O https://teaching.healthtech.dtu.dk/material/22118/ex1.dat
+curl -O https://teaching.healthtech.dtu.dk/material/22118/ex1.acc
+curl -O https://teaching.healthtech.dtu.dk/material/22118/orpahns.dat
+
+# - First list the files in the directory.
+ls -a
+
+# - Copy ex1.acc to myfile.acc.
+cp ex1.acc myfile.acc
+
+# - Look at the content of both files to ensure they are identical.
+cat ex1.acc
+cat myfile.acc
+
+cmp --silent ex1.acc myfile.acc && echo 'True' || echo 'False'
+
+# - Copy ex1.dat to myfile.acc.
+cp ex1.dat myfile.acc
+
+# - Check that the content of myfile.acc changed.
+cmp --silent ex1.acc myfile.acc && echo 'True' || echo 'False'
+
+# - Delete myfile.acc.
+rm myfile.acc
+
+# - Make a directory test and move the three files to it.
+mkdir test
+mv ex1.acc ex1.dat orphans.sp test/
+
+# - Make a directory data and move the three files to that instead.
+mv test/ data/
+
+# - Remove test directory.
+Got removed when I renamed
+
+# - Change directory to data and confirm that you succeeded. Go back to the home/work directory afterwards.
+cd data 
+ls -a
+cd ..
+
+# - Make three new directories newtest - one inside the other, like a Russian doll.
+mkdir newtest newtest/newtest newtest/newtest/newtest
+
+# - Move the data directory to the innermost newtest directory.
+mv data/ newtest/newtest/newtest/
+
+
+# - Confirm that the three files are moved along with the data directory.
+ls -a newtest/newtest/newtest/data/
+
+# - Copy the three files to your home (your top directory).
+mv newtest/newtest/newtest/data/* ~
+
+# - Remove all newtest directories and data in the with a single command.
+sudo rm -rf newtest/
+
+# - Count the lines in ex1.acc and ex1.dat.
+wc -l ex1.acc ex1.dat
+
+# - Concatenate ex1.acc and ex1.dat in the file ex1.tot, i.e. copy the content of two files into one new file. Verify that all gene IDs comes first followed by numerical data.
+cat ex1.acc ex1.dat >> ex1.tot
+
+# - Merge/Paste ex1.acc and ex1.dat together in ex1.tot, thus destroying the old file. Verify that corresponding gene IDs and numerical data are put on the same line as the data.
+paste ex1.acc ex1.dat > ex1.tot
+head ex1.tot
+
+# - Extract (cut) SwissProt ID and 3nd numerical data (column 1 and 5) from ex1.tot. Put results into a file ex1.res.
+cut -f1,5 ex1.tot > ex1.res
+
+# - Find the 3 SwissProt ID's in ex1.res which have the largest number(s) in column 2, i.e. the top 3 entries. Display only the ID's.
+sort -k2,2nr ex1.res | head -n 3 | cut -f1
+
+# - Find the lines (using grep) in orphans.sp which contain a GenBank accession number. There are 85, verify this. Note: An accession number is one or two capital letters and looks like this 'AB000114.CDS.1', i.e. Some letters followed by some numbers. The .CDS. part is kind of optional.
+grep -E 'CDS' orphans.sp | wc -l
+
+# - How many human genes with SwissProt IDs in orphans.sp exist ? How many of those are hypothetical ? (11)
+grep -E '_HUMAN' orphans.sp | wc -l
+207
+
+grep -E '_HUMAN' orphans.sp | grep -E 'HYPOTHETICAL' |  wc -l
+11
+
+# - How many genes belong to the rat, and how many of those are precursors ? (9) Note: A Swissprot ID looks like 'PARG_HUMAN' or 'TF1A_MOUSE', with the gene being before the underscore and the organism after the underscore.
+grep -E '_RAT' orphans.sp | grep -E 'PRECURSOR' |  wc -l
+9
+
+# - From the file ex1.res find the lines with positive numbers and put then into ex1.pos. The lines with negative number go into ex1.neg.
+awk '$2 > 0 {print > "ex1.pos"} $2 < 0 {print > "ex1.neg"}' ex1.res
+
+# - Calculate ((356+51)*123-12765)/56 on the command line. Design your command so when you press ENTER to execute, it computes the result and shows the prompt waiting for your next command.
+echo $((((356+51)*123-12765)/56))
