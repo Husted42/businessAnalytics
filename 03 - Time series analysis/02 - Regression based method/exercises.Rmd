@@ -1,0 +1,63 @@
+---
+title: "exercises"
+output: html_document
+---
+
+# Exercise 3.1
+### a)
+Estimate parameters
+```{r}
+# Data
+y <- c(1.0, 0.5, 2.0, 2.0, 3.5, 3.0, 4.0)
+x <- c(4.0, 4.0, 3.5, 4.0, 2.0, 2.5, 1.5)
+
+# Fit linear regression model
+model <- lm(y ~ x)
+
+# Show results
+summary(model)
+
+```
+$$
+  \hat{\beta_1} = 5.7 \\ 
+  \hat{\beta_2} = -1.13
+$$
+
+
+### b) 
+Consider a variable x_8 = 0.5, what is the 95% interval for Y?
+
+```{r}
+
+# New value
+newdata <- data.frame(x = 0.5)
+
+# 90% prediction interval
+predict(model, newdata, interval = "prediction", level = 0.90)
+
+```
+
+#### c)
+Only using y_t
+ie. we make a simple model'
+$$
+  Y = \mu + \epsilon_t
+$$
+
+```{r}
+y <- c(1.0, 0.5, 2.0, 2.0, 3.5, 3.0, 4.0)
+n <- length(y)
+
+ybar <- mean(y)
+s <- sd(y)                 # sample SD with (n-1) in denominator
+tcrit <- qt(0.95, df = n-1)
+
+lower <- ybar - tcrit * s * sqrt(1 + 1/n)
+upper <- ybar + tcrit * s * sqrt(1 + 1/n)
+
+c(pred = ybar, lower = lower, upper = upper)
+```
+
+
+
+
