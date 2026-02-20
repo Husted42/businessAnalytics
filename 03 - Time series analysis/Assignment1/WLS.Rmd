@@ -1,0 +1,72 @@
+---
+title: "WLS"
+output: html_document
+date: "2026-02-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+### Read training data
+#! Perhaps you need to set the working directory!?
+#setwd("/home/pbac/g/course02417/2025/assignment1")
+D <- read.csv("DST_BIL54.csv")
+str(D)
+
+# See the help
+?strftime
+D$time <- as.POSIXct(paste0(D$time,"-01"), "%Y-%m-%d", tz="UTC")
+D$time
+class(D$time)
+
+## Year to month for each of them
+D$year <- 1900 + as.POSIXlt(D$time)$year + as.POSIXlt(D$time)$mon / 12
+
+## Make the output variable a floating point (i.e.\ decimal number)
+D$total <- as.numeric(D$total) / 1E6
+
+## Divide intro train and test set
+teststart <- as.POSIXct("2024-01-01", tz="UTC")
+Dtrain <- D[D$time < teststart, ]
+Dtest <- D[D$time >= teststart, ]
+
+### convert time to a variable x
+D$x <- 1900 + as.POSIXlt(D$time)$year + as.POSIXlt(D$time)$mon / 12
+D$x <- as.numeric(format(D$time, "%Y")) +
+          (as.numeric(format(D$time, "%m")) - 1) / 12
+
+# Only keep x and total in d
+D <- D[, c("x", "total", "year")]
+D$x <- D$x - 2018
+
+Dsmall <- D[, c("x", "total")]
+
+Dtrain <- Dsmall[Dsmall$x < (2024 - 2018), ]
+Dtest  <- Dsmall[Dsmall$x >= (2024 - 2018), ]
+
+```
+
+
+
+# WLS
+
+We setup the weights st. we have $ w_n = \lambda^0, w_{n-1} = \lambda^1, w_{n-2}  = \lambda²... , w_1 = \lambda^n $. We can use these weight to make our covariance matrix $ \Sigma $. We are not interested in modelling the correlation between timepoints, meaning that we will only have values in the diagonal. We want to model it st. observations with low weight allows for a high variance. As in eq. 3.96 we pick $ \Sigma = \text{Diag[} 1 / \lambda^{n-1}, ... , 1 / \lambda, 1  $  
+
+```{r}
+n <- length(Dtrain$x)
+n
+lambda = 0.9
+weights <- lambda^((n-1):0)
+# plot the weights:
+barplot(weights, names=1:n)
+
+
+SIGMA <- diag(n)
+diag(SIGMA) <- 1/weights
+# print lower right corner to check:
+print(SIGMA[(n-6):n, (n-6):n]) # looks fine :-)
+
+```
+
