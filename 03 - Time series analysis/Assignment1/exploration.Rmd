@@ -1,0 +1,208 @@
+---
+title: "exploration"
+output: html_document
+---
+
+```{r}
+library(lme4)
+library(predictmeans)
+```
+
+
+```{r}
+### Read training data
+#! Perhaps you need to set the working directory!?
+#setwd("/home/pbac/g/course02417/2025/assignment1")
+D <- read.csv("DST_BIL54.csv")
+str(D)
+
+# See the help
+?strftime
+D$time <- as.POSIXct(paste0(D$time,"-01"), "%Y-%m-%d", tz="UTC")
+D$time
+class(D$time)
+
+## Year to month for each of them
+D$year <- 1900 + as.POSIXlt(D$time)$year + as.POSIXlt(D$time)$mon / 12
+
+## Make the output variable a floating point (i.e.\ decimal number)
+D$total <- as.numeric(D$total) / 1E6
+
+## Divide intro train and test set
+teststart <- as.POSIXct("2024-01-01", tz="UTC")
+Dtrain <- D[D$time < teststart, ]
+Dtest <- D[D$time >= teststart, ]
+
+### convert time to a variable x
+D$x <- 1900 + as.POSIXlt(D$time)$year + as.POSIXlt(D$time)$mon / 12
+D$x <- as.numeric(format(D$time, "%Y")) +
+          (as.numeric(format(D$time, "%m")) - 1) / 12
+
+# Only keep x and total in d
+D <- D[, c("x", "total", "year")]
+D$x <- D$x - 2018
+
+Dsmall <- D[, c("x", "total")]
+
+Dtrain <- Dsmall[Dsmall$x < (2024 - 2018), ]
+Dtest  <- Dsmall[Dsmall$x >= (2024 - 2018), ]
+
+```
+
+```{r}
+nrow(Dtrain)
+nrow(Dtest)
+
+```
+
+
+```{r}
+plot(Dtrain$x, Dtrain$total,
+     type = "l",
+     xlab = "Year",
+     ylab = "Total (millions)",
+     main = "Total Vehicles Over Time")
+
+```
+
+```{r}
+plot(Dtest$x, Dtest$total,
+     type = "l",
+     xlab = "Year",
+     ylab = "Total (millions)",
+     main = "Total Vehicles Over Time")
+
+```
+
+```{r}
+# describe the data
+summary(Dtrain)
+
+# Fit a constant mean model
+mean_total <- lm(total ~ 1, data = Dtrain)
+summary(mean_total)
+
+```
+
+# Task 3
+### a)
+```{r}
+X <- model.matrix(total ~ x, data = Dtrain)
+Y <- Dtrain$total
+theta_hat <- solve(t(X) %*% X) %*% t(X) %*% Y
+theta_hat
+```
+
+Check in R
+```{r}
+
+lm_fit <- lm(total ~ x, data = Dtrain)
+summary(lm_fit)
+
+```
+Comuter standard error:
+
+```{r}
+residuals <- Y - X %*% theta_hat 
+SSE <- sum(residuals^2)
+SSE
+
+N <- nrow(Dtrain)
+p <- ncol(Dtrain)
+N
+p
+
+sigma2_hat <- SSE / (N - p)
+sigma2_hat
+
+sigma_hat <- sqrt(sigma2_hat)
+sigma_hat
+
+summary(lm_fit)$sigma
+
+print("Paramter std. error")
+cov_theta <- sigma2_hat * solve(t(X) %*% X)
+cov_theta
+std_param = sqrt(diag(cov_theta))
+std_param
+
+```
+### b)
+Plot the estimated mean as a line with the observations as points.
+
+```{r}
+plot(Dtrain$x, Dtrain$total,
+     type = "p",
+     xlab = "Year",
+     ylab = "Total (millions)",
+     main = "Total Vehicles Over Time with Linear Fit")
+
+abline(a = theta_hat[1], b = theta_hat[2], col = "red", lwd = 2)
+
+
+```
+### c)
+Make a forecast for the test set, hence the following 12 months - i.e., compute predicted values
+with corresponding prediction intervals for 2024-Jan to 2024-Dec. Present these values in a table
+```{r}
+# Debugginh
+colnames(Dtest)
+head(Dtest)
+```
+
+```{r}
+# train : Dtrain
+# test : Dtest
+
+# Predict the values based in Dtest
+lm_fit <- lm(total ~ x, data = Dtrain)
+predictions <- predict(lm_fit, newdata = Dtest, interval = "prediction")
+
+fitted <- predictions[1:12, 1]
+
+```
+
+### d)
+ChatGPT spegetti:
+
+```{r}
+str(Dtest)
+```
+
+```{r}
+lm_fit <- lm(total ~ x, data = Dtrain)
+pred <- predict(lm_fit, newdata = Dtest, interval = "prediction")
+
+plot(Dtest$x, pred[, "fit"], type = "l", lwd = 2,
+     ylim = range(pred[, c("lwr","upr")]),
+     xlab = "x", ylab = "total",
+     main = "Forecast with Prediction Intervals")
+
+lines(Dtest$x, pred[, "lwr"], lty = 2)
+lines(Dtest$x, pred[, "upr"], lty = 2)
+
+points(Dtest$x, Dtest$total, pch = 16)
+
+```
+
+### f)
+```{r}
+# Fit model (if not already done)
+lm_fit <- lm(total ~ x, data = Dtrain)
+
+# --- 1) Residual plot: residuals vs fitted ---
+plot(fitted(lm_fit), resid(lm_fit),
+     xlab = "Fitted values",
+     ylab = "Residuals",
+     main = "Residuals vs Fitted",
+     pch = 16)
+abline(h = 0, lty = 2)
+
+# --- 2) QQ plot of residuals ---
+qqnorm(resid(lm_fit), main = "Normal Q-Q Plot of Residuals", pch = 16)
+qqline(resid(lm_fit), lty = 2)
+
+```
+
+
+
