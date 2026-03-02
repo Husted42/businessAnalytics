@@ -69,4 +69,124 @@ diag(SIGMA) <- 1/weights
 print(SIGMA[(n-6):n, (n-6):n]) # looks fine :-)
 
 ```
+### 
+```{r}
+sum_wls <- sum(weights)
+sum_wls
+
+```
+
+# Estimate parameters
+```{r}
+# GLS / generalized least squares estimator:
+# theta_hat = (t(X) %*% Sigma^{-1} %*% X)^{-1} %*% t(X) %*% Sigma^{-1} %*% Y
+gls_theta_hat <- function(X, Sigma, Y, tol = 1e-10) {
+  X <- as.matrix(X)
+  Sigma <- as.matrix(Sigma)
+  Y <- as.matrix(Y)
+  if (ncol(Y) != 1) stop("Y must be a vector or an n x 1 matrix.")
+  if (nrow(X) != nrow(Sigma) || nrow(Sigma) != nrow(Y)) {
+    stop("Dimensions must match: nrow(X) = nrow(Sigma) = length(Y).")
+  }
+
+  # Compute Sigma^{-1} X and Sigma^{-1} Y without forming Sigma^{-1}
+  SinvX <- solve(Sigma, X)
+  SinvY <- solve(Sigma, Y)
+
+  A <- t(X) %*% SinvX         # = t(X) Sigma^{-1} X
+  b <- t(X) %*% SinvY         # = t(X) Sigma^{-1} Y
+
+  # Check full rank of A
+  r <- qr(A, tol = tol)$rank
+  if (r < ncol(X)) {
+    stop("t(X) %*% Sigma^{-1} %*% X is not full rank (or nearly singular).")
+  }
+
+  # Solve A * theta = b
+  theta_hat <- solve(A, b)
+  drop(theta_hat)  # return as numeric vector
+}
+
+# Example usage:
+X <- cbind(1, Dtrain$x)        # include intercept if needed
+theta_hat <- gls_theta_hat(X, SIGMA, Dtrain$total)
+print(theta_hat)
+```
+
+```{r}
+w <- weights  # from your code above
+
+fit_wls <- lm(total ~ x, data = Dtrain, weights = w)
+summary(fit_wls)
+```
+
+```{r}
+X <- model.matrix(total ~ x, data = Dtrain)
+Y <- Dtrain$total
+theta_hat_ols <- solve(t(X) %*% X) %*% t(X) %*% Y
+theta_hat_wls <- theta_hat
+
+plot(Dtrain$x, Dtrain$total,
+     type = "p",
+     xlab = "Year",
+     ylab = "Total (millions)",
+     main = "Total Vehicles Over Time with Linear Fit")
+
+abline(a = theta_hat_wls[1], b = theta_hat_wls[2], col = "red", lwd = 2)
+abline(a = theta_hat_ols[1], b = theta_hat_ols[2], col = "blue", lwd = 2)
+```
+
+
+# Forecast
+```{r}
+# Predictions
+pred_wls <- predict(lm_fit_wls, newdata = Dtest, interval = "prediction")
+pred_ols <- predict(lm_fit_ols, newdata = Dtest, interval = "prediction")
+
+# Make sure x is ordered for clean lines
+ord <- order(Dtest$x)
+
+x_vals <- Dtest$x[ord]
+y_vals <- Dtest$total[ord]
+
+pred_wls <- pred_wls[ord, ]
+pred_ols <- pred_ols[ord, ]
+
+# Set y-limits to include both models' intervals
+ylim_all <- range(
+  pred_wls[, c("lwr","upr")],
+  pred_ols[, c("lwr","upr")]
+)
+
+# Base plot (WLS)
+plot(x_vals, pred_wls[, "fit"], type = "l", lwd = 2,
+     ylim = ylim_all,
+     xlab = "x", ylab = "total",
+     main = "WLS vs OLS Forecast with Prediction Intervals")
+
+# WLS intervals
+lines(x_vals, pred_wls[, "lwr"], lty = 2, lwd = 2)
+lines(x_vals, pred_wls[, "upr"], lty = 2, lwd = 2)
+
+# OLS fit
+lines(x_vals, pred_ols[, "fit"], lwd = 2, col = 2)
+
+# OLS intervals
+lines(x_vals, pred_ols[, "lwr"], lty = 2, col = 2)
+lines(x_vals, pred_ols[, "upr"], lty = 2, col = 2)
+
+# Test data points
+points(x_vals, y_vals, pch = 16)
+
+# Legend
+legend("topleft",
+       legend = c("WLS fit", "WLS PI",
+                  "OLS fit", "OLS PI",
+                  "Test data"),
+       col = c(1, 1, 2, 2, 1),
+       lty = c(1, 2, 1, 2, NA),
+       lwd = c(2, 2, 2, 2, NA),
+       pch = c(NA, NA, NA, NA, 16),
+       bty = "n")
+```
 
