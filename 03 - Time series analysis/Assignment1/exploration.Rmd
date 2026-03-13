@@ -40,12 +40,12 @@ D$x <- as.numeric(format(D$time, "%Y")) +
 
 # Only keep x and total in d
 D <- D[, c("x", "total", "year")]
-D$x <- D$x - 2018
+D$x <- D$x
 
 Dsmall <- D[, c("x", "total")]
 
-Dtrain <- Dsmall[Dsmall$x < (2024 - 2018), ]
-Dtest  <- Dsmall[Dsmall$x >= (2024 - 2018), ]
+Dtrain <- Dsmall[Dsmall$x < (2024), ]
+Dtest  <- Dsmall[Dsmall$x >= (2024), ]
 
 ```
 
@@ -56,14 +56,7 @@ nrow(Dtest)
 ```
 
 
-```{r}
-plot(Dtrain$x, Dtrain$total,
-     type = "l",
-     xlab = "Year",
-     ylab = "Total (millions)",
-     main = "Total Vehicles Over Time")
 
-```
 
 ```{r}
 plot(Dtest$x, Dtest$total,
@@ -156,6 +149,7 @@ head(Dtest)
 
 # Predict the values based in Dtest
 lm_fit <- lm(total ~ x, data = Dtrain)
+summary(lm_fit)
 predictions <- predict(lm_fit, newdata = Dtest, interval = "prediction")
 
 fitted <- predictions[1:12, 1]
