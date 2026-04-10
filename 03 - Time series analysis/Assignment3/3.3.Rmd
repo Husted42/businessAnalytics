@@ -1,0 +1,176 @@
+---
+title: '3.3'
+output: html_document
+date: "2026-04-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("corrplot")
+library(corrplot)
+```
+
+
+# Exercise 3.1
+
+```{r}
+data_path = "assignment3_2026/box_data_60min.csv"
+box_data = read.csv(data_path)
+
+# Get the range of thout
+range(box_data$thour)
+
+# descibe data
+str(box_data)
+```
+
+
+```{r}
+
+
+# Combine variables
+df_cut <- data.frame(
+  Ph = box_data$Ph,
+  Tdelta = box_data$Tdelta,
+  Gv = box_data$Gv
+)
+
+# Compute correlation matrix
+corr_matrix <- cor(df_cut, use = "complete.obs")
+
+# Plot
+corrplot(corr_matrix)
+
+cor(df_cut)
+```
+
+```{r}
+# Fix date time to look cool
+df_cut <- data.frame(
+  time = box_data$thour,
+  Ph = box_data$Ph,
+  Tdelta = box_data$Tdelta,
+  Gv = box_data$Gv
+)
+
+```
+
+
+```{r}
+plot(df_cut$time, df_cut$Tdelta, type = "l", col = "blue",
+     xlab = "thour", ylab = "Value",
+     # ylim = range(df_cut[, c("Tdelta","Ph","Gv")])
+     ylim = c(10,100)
+     )
+
+lines(df_cut$time, df_cut$Ph, col = "red")
+lines(df_cut$time, df_cut$Gv, col = "green")
+
+# axis(1, at = seq(0, max(df_cut$time), by = 24))  # one tick per day
+
+legend("topright",
+       legend = c("Tdelta", "Ph", "Gv"),
+       col = c("blue", "red", "green"),
+       lty = 1)
+c
+
+```
+
+# Exercise 3.2
+```{r}
+train_data <- subset(box_data, thour >= 1 & thour <= 167)
+test_data  <- subset(box_data, thour > 167)
+
+
+```
+
+# Exercise 3.3
+
+```{r}
+pairs(train_data[, c("Ph", "Tdelta", "Gv")],
+      main = "Scatterplot Matrix")
+```
+
+
+```{r}
+acf(train_data$Ph, main = "ACF - Ph")
+acf(train_data$Tdelta, main = "ACF - Tdelta")
+acf(train_data$Gv, main = "ACF - Gv")
+```
+
+
+```{r}
+
+par(mfrow = c(1, 3))  # 1 row, 3 columns
+
+ccf(train_data$Ph, train_data$Tdelta, lag.max = 20, main = "CCF: Ph vs Tdelta")
+ccf(train_data$Ph, train_data$Gv, lag.max = 20, main = "CCF: Ph vs Gv")
+ccf(train_data$Tdelta, train_data$Gv, lag.max = 20, main = "CCF: Tdelta vs Gv")
+```
+
+```{r}
+par(mfrow = c(3, 1))  # 3 rows, 1 column
+
+acf(train_data$Ph, main = "ACF - Ph")
+acf(train_data$Tdelta, main = "ACF - Tdelta")
+acf(train_data$Gv, main = "ACF - Gv")
+
+par(mfrow = c(1, 1))  # reset layout
+```
+
+```{r}
+par(mfrow = c(1, 3))  # 1 row, 3 columns
+
+acf(train_data$Ph, main = "Ph",lag.max = 50)
+acf(train_data$Tdelta, main = "Tdelta",lag.max = 50)
+acf(train_data$Gv, main = "Gv", lag.max = 50)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+acf_ph <- acf(train_data$Ph, plot = FALSE)
+acf_td <- acf(train_data$Tdelta, plot = FALSE)
+acf_gv <- acf(train_data$Gv, plot = FALSE)
+
+plot(acf_ph$lag, acf_ph$acf, type = "l", col = "red",
+     xlab = "Lag", ylab = "ACF")
+
+lines(acf_td$lag, acf_td$acf, col = "blue")
+lines(acf_gv$lag, acf_gv$acf, col = "green")
+
+legend("topright",
+       legend = c("Ph", "Tdelta", "Gv"),
+       col = c("red", "blue", "green"),
+       lty = 1)
+```
+
+```{r}
+acf_ph <- acf(train_data$Ph, plot = FALSE)
+acf_td <- acf(train_data$Tdelta, plot = FALSE)
+acf_gv <- acf(train_data$Gv, plot = FALSE)
+
+# Empty plot
+plot(acf_ph$lag, acf_ph$acf, type = "n",
+     xlab = "Lag", ylab = "ACF",
+     ylim = range(c(acf_ph$acf, acf_td$acf, acf_gv$acf)))
+
+# Add vertical lines (stems)
+segments(acf_ph$lag, 0, acf_ph$lag, acf_ph$acf, col = "red")
+segments(acf_td$lag, 0, acf_td$lag, acf_td$acf, col = "blue")
+segments(acf_gv$lag, 0, acf_gv$lag, acf_gv$acf, col = "green")
+
+# Optional: add points on top
+points(acf_ph$lag, acf_ph$acf, col = "red", pch = 16)
+points(acf_td$lag, acf_td$acf, col = "blue", pch = 16)
+points(acf_gv$lag, acf_gv$acf, col = "green", pch = 16)
+
+legend("topright",
+       legend = c("Ph", "Tdelta", "Gv"),
+       col = c("red", "blue", "green"),
+       lty = 1)
+```
+
