@@ -1,0 +1,229 @@
+--- title: '3.3' output: html_document date: "2026-04-10" ---
+{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Installs
+```{r}
+install.packages("corrplot")
+library(corrplot)
+```
+# Data preperation
+```{r}
+data_path <- "C:/Users/huste/Downloads/assignment3_2026/box_data_60min.csv"
+box_data <- read.csv(data_path)
+
+df_cut <- data.frame(
+  Ph = box_data$Ph,
+  Tdelta = box_data$Tdelta,
+  Gv = box_data$Gv
+)
+
+range(box_data$thour)
+str(box_data)
+```
+
+## Correlation
+```{r}
+corr_matrix <- cor(df_cut, use = "complete.obs")
+cor(df_cut)
+```
+
+## Plot time series
+
+```{r}
+df_cut <- data.frame(
+  time = box_data$thour,
+  Ph = box_data$Ph,
+  Tdelta = box_data$Tdelta,
+  Gv = box_data$Gv
+)
+
+plot(df_cut$time, df_cut$Tdelta, type = "l", col = "blue",
+     xlab = "thour", ylab = "Value", ylim = c(10, 100))
+lines(df_cut$time, df_cut$Ph, col = "red")
+lines(df_cut$time, df_cut$Gv, col = "green")
+
+legend("topright",
+       legend = c("Tdelta", "Ph", "Gv"),
+       col = c("blue", "red", "green"),
+       lty = 1)
+```
+
+## Test train split
+```{r}
+train_data <- subset(box_data, thour >= 1 & thour <= 167)
+test_data  <- subset(box_data, thour > 167)
+```
+
+## Plots for data analysis
+```{r}
+pairs(train_data[, c("Ph", "Tdelta", "Gv")],
+      main = "Scatterplot Matrix")
+```
+
+```{r}
+acf(train_data$Ph, main = "ACF - Ph")
+acf(train_data$Tdelta, main = "ACF - Tdelta")
+acf(train_data$Gv, main = "ACF - Gv")
+```
+
+```{r}
+par(mfrow = c(1, 3))
+
+ccf(train_data$Ph, train_data$Tdelta, lag.max = 20, main = "CCF: Ph vs Tdelta")
+ccf(train_data$Ph, train_data$Gv, lag.max = 20, main = "CCF: Ph vs Gv")
+ccf(train_data$Tdelta, train_data$Gv, lag.max = 20, main = "CCF: Tdelta vs Gv")
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+acf_ph <- acf(train_data$Ph, plot = FALSE)
+acf_td <- acf(train_data$Tdelta, plot = FALSE)
+acf_gv <- acf(train_data$Gv, plot = FALSE)
+
+plot(acf_ph$lag, acf_ph$acf, type = "l", col = "red",
+     xlab = "Lag", ylab = "ACF")
+lines(acf_td$lag, acf_td$acf, col = "blue")
+lines(acf_gv$lag, acf_gv$acf, col = "green")
+
+legend("topright",
+       legend = c("Ph", "Tdelta", "Gv"),
+       col = c("red", "blue", "green"),
+       lty = 1)
+```
+
+```{r}
+plot(acf_ph$lag, acf_ph$acf, type = "n",
+     xlab = "Lag", ylab = "ACF",
+     ylim = range(c(acf_ph$acf, acf_td$acf, acf_gv$acf)))
+
+segments(acf_ph$lag, 0, acf_ph$lag, acf_ph$acf, col = "red")
+segments(acf_td$lag, 0, acf_td$lag, acf_td$acf, col = "blue")
+segments(acf_gv$lag, 0, acf_gv$lag, acf_gv$acf, col = "green")
+
+points(acf_ph$lag, acf_ph$acf, col = "red", pch = 16)
+points(acf_td$lag, acf_td$acf, col = "blue", pch = 16)
+points(acf_gv$lag, acf_gv$acf, col = "green", pch = 16)
+
+legend("topright",
+       legend = c("Ph", "Tdelta", "Gv"),
+       col = c("red", "blue", "green"),
+       lty = 1)
+```
+
+# Impulse response
+```{r}
+lag_max <- 10
+ir_data <- train_data
+
+for (k in 0:lag_max) {
+  if (k == 0) {
+    ir_data[[paste0("Tdelta_l", k)]] <- ir_data$Tdelta
+    ir_data[[paste0("Gv_l", k)]] <- ir_data$Gv
+  } else {
+    ir_data[[paste0("Tdelta_l", k)]] <- c(rep(NA, k), head(ir_data$Tdelta, -k))
+    ir_data[[paste0("Gv_l", k)]] <- c(rep(NA, k), head(ir_data$Gv, -k))
+  }
+}
+
+ir_data_complete <- na.omit(ir_data)
+
+td_terms <- paste0("Tdelta_l", 0:lag_max, collapse = " + ")
+gv_terms <- paste0("Gv_l", 0:lag_max, collapse = " + ")
+form <- as.formula(paste("Ph ~", td_terms, "+", gv_terms))
+
+ir_model <- lm(form, data = ir_data_complete)
+summary(ir_model)
+```
+
+```{r}
+coefs <- coef(ir_model)
+
+td_ir <- coefs[paste0("Tdelta_l", 0:lag_max)]
+gv_ir <- coefs[paste0("Gv_l", 0:lag_max)]
+
+td_df <- data.frame(lag = 0:lag_max, response = td_ir)
+gv_df <- data.frame(lag = 0:lag_max, response = gv_ir)
+```
+
+```{r}
+par(mfrow = c(1, 2))
+
+plot(td_df$lag, td_df$response, type = "h", lwd = 3,
+     main = "Impulse response: Tdelta -> Ph",
+     xlab = "Lag", ylab = "Response")
+points(td_df$lag, td_df$response, pch = 16)
+abline(h = 0, lty = 2)
+
+plot(gv_df$lag, gv_df$response, type = "h", lwd = 3,
+     main = "Impulse response: Gv -> Ph",
+     xlab = "Lag", ylab = "Response")
+points(gv_df$lag, gv_df$response, pch = 16)
+abline(h = 0, lty = 2)
+
+par(mfrow = c(1, 1))
+```
+
+# Linear regression
+
+```{r}
+lm_35 <- lm(Ph ~ Tdelta + Gv, data = train_data)
+summary(lm_35)
+```
+
+```{r}
+train_data$pred_35 <- fitted(lm_35)
+
+plot(train_data$thour, train_data$Ph, type = "l", col = "black",
+     xlab = "thour", ylab = "Ph",
+     main = "Observed vs Predicted")
+lines(train_data$thour, train_data$pred_35, col = "red")
+
+legend("topright",
+       legend = c("Observed", "Predicted"),
+       col = c("black", "red"),
+       lty = 1)
+```
+
+```{r}
+train_data$resid_35 <- residuals(lm_35)
+
+par(mfrow = c(2, 2))
+
+# Residuals over time
+plot(train_data$thour, train_data$resid_35, type = "l",
+     main = "Residuals over time")
+abline(h = 0, lty = 2)
+
+# Histogram
+hist(train_data$resid_35, main = "Histogram of residuals")
+
+# QQ plot
+qqnorm(train_data$resid_35)
+qqline(train_data$resid_35)
+
+# Residuals vs fitted
+plot(train_data$pred_35, train_data$resid_35,
+     main = "Residuals vs fitted")
+abline(h = 0, lty = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+acf(train_data$resid_35, main = "ACF of residuals")
+```
+
+```{r}
+par(mfrow = c(1, 2))
+
+ccf(train_data$resid_35, train_data$Tdelta,
+    main = "CCF: residuals vs Tdelta")
+
+ccf(train_data$resid_35, train_data$Gv,
+    main = "CCF: residuals vs Gv")
+
+par(mfrow = c(1, 1))
+```
+
