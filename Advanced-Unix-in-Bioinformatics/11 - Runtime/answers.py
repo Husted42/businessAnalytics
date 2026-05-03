@@ -100,8 +100,116 @@ def normalize_scores(scores : list[float]) -> list[float]:
 '''
 
 ########### ----------- Exercise 04 ----------- ###########
+#!/usr/bin/env python3
+# Exercise 6-1
+def matrix_product(mat1, mat2):
+    """Calculates the product of two matrices and returns it"""
+    if len(mat1[0]) != len(mat2):
+        raise ValueError("The product is not mathematically defined for these matrices")
+
+    product = list()
+
+    # O(m)
+    for row in range(len(mat1)):
+        product.append(list())
+
+        # O(p)
+        for col in range(len(mat2[0])):
+            result = 0
+
+            # O(n)
+            for i in range(len(mat2)):
+                result += mat1[row][i] * mat2[i][col]
+
+            product[-1].append(result)
+
+    return product
+
+"""
+ANSWER:
+    O(m · p · n)
+"""
+
+
 ########### ----------- Exercise 05 ----------- ###########
+def moving_avg(List_of_numbers, Window_size):
+    """Moving average generator"""
+
+    # O(1) length check
+    if len(List_of_numbers) >= Window_size:
+        mysum = 0  # O(1)
+
+        # O(w), where w = Window_size
+        # Computes the sum of the first window
+        for i in range(Window_size):
+            mysum += List_of_numbers[i]
+
+        # O(1)
+        yield mysum / Window_size
+
+        # O(n - w), where n = len(List_of_numbers)
+        # Slides the window across the list
+        for i in range(Window_size, len(List_of_numbers)-1):
+
+            # O(1)
+            # Remove oldest element and add newest element
+            mysum += List_of_numbers[i+1] - List_of_numbers[i - Window_size]
+
+            # O(1)
+            yield mysum / Window_size
+
+"""
+ANSWER
+    O(w + (n - w)) = O(n)
+"""
+
 ########### ----------- Exercise 06 ----------- ###########
+def combinations(combolist):
+    """Generates all letter combinations of input"""
+
+    # O(n)
+    # Create counter list with one counter per position
+    count = [0 for i in combolist]
+
+    # O(1)
+    pointer = 0
+
+    # Runs once per generated combination → K times
+    while pointer < len(combolist):
+
+        # O(n)
+        # Build one combination string by looking up each position
+        yield ''.join([
+            combolist[i][count[i]]
+            for i in range(len(combolist))
+        ])
+
+        # O(1)
+        pointer = 0
+
+        # Worst-case O(n)
+        # Advances the "odometer" counters
+        while pointer < len(combolist):
+            count[pointer] += 1
+
+            # O(1)
+            if count[pointer] == len(combolist[pointer]):
+                count[pointer] = 0
+                pointer += 1
+            else:
+                break
+
+"""
+Per generated combination:
+    O(n) + O(n) = O(n)
+
+Total:
+    O(K · n)
+
+Space complexity:
+    O(n)
+"""
+
 
 ########### ----------- Exercise 07 ----------- ###########
 ''' QT-clustering algorithm
