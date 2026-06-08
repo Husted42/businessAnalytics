@@ -1,0 +1,490 @@
+---
+title: "assignment4"
+output: html_document
+---
+
+```{r}
+## ------------------------------------------------------------
+## Simulate 5 independent realizations of:
+## X_t = a X_{t-1} + b + e_t,  e_t ~ N(0, sigma1^2)
+## ------------------------------------------------------------
+
+set.seed(42)   # Reproducibility
+
+## Parameters
+a <- 0.9
+b <- 1
+sigma1 <- 1
+X0 <- 5
+
+n <- 100
+n_sim <- 5
+
+## Matrix for saving trajectories
+## Rows = time points 0,...,100
+## Columns = independent simulations
+X <- matrix(NA, nrow = n + 1, ncol = n_sim)
+
+## Initial value
+X[1, ] <- X0
+
+## Simulation
+for (j in 1:n_sim) {
+  for (t in 2:(n + 1)) {
+    e_t <- rnorm(1, mean = 0, sd = sigma1)
+    X[t, j] <- a * X[t - 1, j] + b + e_t
+  }
+}
+
+## Time index
+time <- 0:n
+
+## Plot all 5 trajectories
+matplot(
+  time, X,
+  type = "l",
+  lty = 1,
+  lwd = 2,
+  col = 1:n_sim,
+  xlab = "Time step",
+  ylab = expression(X[t]),
+  main = "Five Independent Realizations of the Process"
+)
+
+legend(
+  "bottomright",
+  legend = paste("Trajectory", 1:n_sim),
+  col = 1:n_sim,
+  lty = 1,
+  lwd = 2
+)
+```
+# Exercise 1.2
+```{r}
+## ------------------------------------------------------------
+## Simulate one realization of the state-space model:
+##
+## X_t = a X_{t-1} + b + e1_t,   e1_t ~ N(0, sigma1^2)
+## Y_t = X_t + e2_t,             e2_t ~ N(0, sigma2^2)
+## ------------------------------------------------------------
+
+set.seed(42)   # Reproducibility
+
+## Parameters
+a <- 0.9
+b <- 1
+sigma1 <- 1
+sigma2 <- 1
+X0 <- 5
+
+n <- 100
+
+## Vectors for saving latent states and observations
+X <- rep(NA, n + 1)
+Y <- rep(NA, n + 1)
+
+## Initial state
+X[1] <- X0
+
+## Simulate observation at time 0
+Y[1] <- X[1] + rnorm(1, mean = 0, sd = sigma2)
+
+## Simulate process and observations
+for (t in 2:(n + 1)) {
+  e1_t <- rnorm(1, mean = 0, sd = sigma1)
+  e2_t <- rnorm(1, mean = 0, sd = sigma2)
+  
+  X[t] <- a * X[t - 1] + b + e1_t
+  Y[t] <- X[t] + e2_t
+}
+
+## Time index
+time <- 0:n
+
+## Plot latent state and noisy observations
+plot(
+  time, X,
+  type = "l",
+  lwd = 2,
+  col = "blue",
+  xlab = "Time step",
+  ylab = "Value",
+  main = expression("Latent state " * X[t] * " and noisy observations " * Y[t])
+)
+
+points(
+  time, Y,
+  col = "red",
+  pch = 16
+)
+
+lines(
+  time, Y,
+  col = "red",
+  lty = 2
+)
+
+legend(
+  "bottomright",
+  legend = c("True latent state X_t", "Noisy observations Y_t"),
+  col = c("blue", "red"),
+  lty = c(1, 2),
+  pch = c(NA, 16),
+  lwd = c(2, 1)
+)
+```
+
+```{r}
+## ------------------------------------------------------------
+## Kalman filter for scalar state-space model:
+##
+## X_t = a X_{t-1} + b + e1_t,   e1_t ~ N(0, sigma1^2)
+## Y_t = X_t + e2_t,             e2_t ~ N(0, R)
+##
+## Here C = 1, so no matrix operations are needed.
+## ------------------------------------------------------------
+
+myKalmanFilter <- function(
+  y,              # Vector of observations Y_t
+  theta,          # theta = c(a, b, sigma1)
+  R,              # Measurement noise variance sigma2^2
+  x_prior = 0,    # Initial prior mean for X_0
+  P_prior = 10    # Initial prior variance for X_0
+) {
+  a <- theta[1]
+  b <- theta[2]
+  sigma1 <- theta[3]
+  
+  Q <- sigma1^2   # Process noise variance
+  
+  N <- length(y)
+  
+  x_pred <- numeric(N)         # Predicted state mean
+  P_pred <- numeric(N)         # Predicted state variance
+  
+  x_filt <- numeric(N)         # Filtered state mean
+  P_filt <- numeric(N)         # Filtered state variance
+  
+  innovation <- numeric(N)     # y_t - predicted y_t
+  innovation_var <- numeric(N) # Var(y_t | past)
+  
+  for (t in seq_len(N)) {
+    
+    ## -------------------------
+    ## Prediction step
+    ## -------------------------
+    if (t == 1) {
+      x_pred[t] <- a * x_prior + b
+      P_pred[t] <- a^2 * P_prior + Q
+    } else {
+      x_pred[t] <- a * x_filt[t - 1] + b
+      P_pred[t] <- a^2 * P_filt[t - 1] + Q
+    }
+    
+    
+    ## -------------------------
+    ## Update step
+    ## -------------------------
+    innovation[t] <- y[t] - x_pred[t]
+    innovation_var[t] <- P_pred[t] + R
+    
+    K_t <- P_pred[t] / innovation_var[t]
+    
+    x_filt[t] <- x_pred[t] + K_t * innovation[t]
+    P_filt[t] <- P_pred[t] - K_t * innovation_var[t] * K_t
+    
+    ## Equivalent scalar formula:
+    ## P_filt[t] <- (1 - K_t) * P_pred[t]
+  }
+  
+  return(list(
+    x_pred = x_pred,
+    P_pred = P_pred,
+    x_filt = x_filt,
+    P_filt = P_filt,
+    innovation = innovation,
+    innovation_var = innovation_var
+  ))
+}
+```
+
+```{r}
+## ------------------------------------------------------------
+## Simulate one realization
+## ------------------------------------------------------------
+
+set.seed(42)
+
+a <- 0.9
+b <- 1
+sigma1 <- 1
+sigma2 <- 1
+
+R <- sigma2^2
+X0 <- 5
+n <- 100
+
+X <- rep(NA, n + 1)
+Y <- rep(NA, n + 1)
+
+X[1] <- X0
+Y[1] <- X[1] + rnorm(1, mean = 0, sd = sigma2)
+
+for (t in 2:(n + 1)) {
+  e1_t <- rnorm(1, mean = 0, sd = sigma1)
+  e2_t <- rnorm(1, mean = 0, sd = sigma2)
+  
+  X[t] <- a * X[t - 1] + b + e1_t
+  Y[t] <- X[t] + e2_t
+}
+
+time <- 0:n
+```
+
+
+```{r}
+## ------------------------------------------------------------
+## Apply Kalman filter
+## ------------------------------------------------------------
+
+theta <- c(a, b, sigma1)
+
+kf <- myKalmanFilter(
+  y = Y,
+  theta = theta,
+  R = R,
+  x_prior = 5,
+  P_prior = 0
+)
+
+
+```
+
+```{r}
+## ------------------------------------------------------------
+## 95% confidence interval for predicted state
+## ------------------------------------------------------------
+
+upper <- kf$x_pred + 1.96 * sqrt(kf$P_pred)
+lower <- kf$x_pred - 1.96 * sqrt(kf$P_pred)
+
+ylim_range <- range(c(X, Y, lower, upper), na.rm = TRUE)
+
+plot(
+  time, X,
+  type = "l",
+  lwd = 2,
+  col = "blue",
+  ylim = ylim_range,
+  xlab = "Time step",
+  ylab = "Value",
+  main = expression("Kalman filtre")
+)
+
+## Add confidence interval
+lines(time, upper, col = "darkgreen", lty = 3, lwd = 1.5)
+lines(time, lower, col = "darkgreen", lty = 3, lwd = 1.5)
+
+## Add observations
+points(time, Y, col = "red", pch = 16, cex = 0.7)
+
+## Add predicted state
+lines(time, kf$x_pred, col = "darkgreen", lty = 2, lwd = 2)
+
+legend(
+  "bottomright",
+  legend = c(
+    "True latent state X_t",
+    "Noisy observations Y_t",
+    "Predicted state",
+    "95% prediction interval"
+  ),
+  col = c("blue", "red", "darkgreen", "darkgreen"),
+  lty = c(1, NA, 2, 3),
+  pch = c(NA, 16, NA, NA),
+  lwd = c(2, NA, 2, 1.5),
+  bty = "n"
+)
+```
+
+
+# Exercise 1.4
+
+
+```{r}
+myLogLikFun <- function(theta, y, R, x_prior = 0, P_prior = 10) {
+  a <- theta[1]
+  b <- theta[2]
+  sigma1 <- theta[3]
+  
+  # Optional: prevent invalid standard deviations
+  if (sigma1 <= 0) {
+    return(Inf)
+  }
+  
+  # Call the Kalman filter function
+  kf_result <- myKalmanFilter(
+    y = y,
+    theta = theta,
+    R = R,
+    x_prior = x_prior,
+    P_prior = P_prior
+  )
+  err <- kf_result$innovation        # v_t = y_t - y_hat_t
+  S <- kf_result$innovation_var      # S_t = Var(v_t)
+  
+  # Log-likelihood for Gaussian innovations
+  logL <- sum(
+    -0.5 * (
+      log(2 * pi) +
+      log(S) +
+      (err^2 / S)
+    )
+  )
+  
+  return(-logL)  # negative log-likelihood for minimization
+}
+```
+
+
+```{r}
+## ------------------------------------------------------------
+## Simulate scalar state-space model
+##
+## X_t = a X_{t-1} + b + e1_t,   e1_t ~ N(0, sigma1^2)
+## Y_t = X_t + e2_t,             e2_t ~ N(0, R)
+## ------------------------------------------------------------
+
+simulateSystem <- function(
+  n,
+  theta,
+  R,
+  x0 = 0
+) {
+  a <- theta[1]
+  b <- theta[2]
+  sigma1 <- theta[3]
+  
+  x <- numeric(n)
+  y <- numeric(n)
+  
+  x[1] <- a * x0 + b + rnorm(1, mean = 0, sd = sigma1)
+  y[1] <- x[1] + rnorm(1, mean = 0, sd = sqrt(R))
+  
+  for (t in 2:n) {
+    x[t] <- a * x[t - 1] + b + rnorm(1, mean = 0, sd = sigma1)
+    y[t] <- x[t] + rnorm(1, mean = 0, sd = sqrt(R))
+  }
+  
+  return(list(
+    x = x,
+    y = y
+  ))
+}
+```
+
+```{r}
+## ------------------------------------------------------------
+## Estimate parameters from 100 independent simulations
+## ------------------------------------------------------------
+
+set.seed(123)
+
+n <- 100
+n_sim <- 100
+
+theta_true <- c(0.9, 1, 5)
+names(theta_true) <- c("a", "b", "sigma1")
+
+R <- 1   # known measurement noise variance
+
+estimates <- matrix(NA, nrow = n_sim, ncol = 3)
+colnames(estimates) <- c("a_hat", "b_hat", "sigma1_hat")
+
+convergence <- numeric(n_sim)
+
+for (i in seq_len(n_sim)) {
+  
+  sim <- simulateSystem(
+    n = n,
+    theta = theta_true,
+    R = R,
+    x0 = 0
+  )
+  
+  fit <- optim(
+    par = c(0.5, 0.5, 0.5),
+    fn = myLogLikFun,
+    y = sim$y,
+    R = R,
+    method = "L-BFGS-B",
+    lower = c(-0.999, -Inf, 1e-6),
+    upper = c(0.999, Inf, Inf)
+  )
+  
+  estimates[i, ] <- fit$par
+  convergence[i] <- fit$convergence
+}
+
+estimates <- as.data.frame(estimates)
+
+head(estimates)
+```
+
+```{r}
+## ------------------------------------------------------------
+## Numerical summary
+## ------------------------------------------------------------
+
+summary_results <- data.frame(
+  Parameter = c("a", "b", "sigma1"),
+  True_value = theta_true,
+  Mean_estimate = colMeans(estimates),
+  Median_estimate = apply(estimates, 2, median),
+  SD_estimate = apply(estimates, 2, sd),
+  Bias = colMeans(estimates) - theta_true
+)
+
+print(summary_results)
+
+cat("Number of failed optimizations:", sum(convergence != 0), "\n")
+```
+
+```{r}
+## ------------------------------------------------------------
+## Boxplots of parameter estimates
+## ------------------------------------------------------------
+
+par(mfrow = c(1, 3))
+
+boxplot(
+  estimates$a_hat,
+  main = expression("Estimates of " * a),
+  ylab = expression(hat(a))
+)
+abline(h = theta_true["a"], col = "red", lwd = 2)
+
+boxplot(
+  estimates$b_hat,
+  main = expression("Estimates of " * b),
+  ylab = expression(hat(b))
+)
+abline(h = theta_true["b"], col = "red", lwd = 2)
+
+boxplot(
+  estimates$sigma1_hat,
+  main = expression("Estimates of " * sigma[1]),
+  ylab = expression(hat(sigma)[1])
+)
+abline(h = theta_true["sigma1"], col = "red", lwd = 2)
+
+legend(
+  "topright",
+  legend = "True value",
+  col = "red",
+  pch = 19,
+  bty = "n"
+)
+```
+
+
