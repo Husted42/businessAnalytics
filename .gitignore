@@ -3,12 +3,17 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+
+
 # C extensions
 *.so
 
 # Data
 *.zip
 *.csv
+
+# Ignore PNG files in Stochastic-Simulation
+Stochastic-Simulation/*.png
 
 # Distribution / packaging
 .Python
