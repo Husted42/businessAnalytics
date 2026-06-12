@@ -233,19 +233,64 @@ def second_moment(lambda_value):
     )
 
 
-def importance_sampling_integral_exponential(n=10_000, lambda_value=1.0, seed=42, confidence=0.95):
+def importance_sampling_integral_exponential(
+    n=10_000,
+    lambda_value=1.0,
+    seed=42,
+    confidence=0.95
+):
     rng = np.random.default_rng(seed)
 
-    # Generate X_i ~ Exp(lambda)
+    # Generate samples from the proposal distribution:
+    # X ~ Exp(lambda)
     X = rng.exponential(scale=1 / lambda_value, size=n)
 
-    # Importance sampling estimator:
-    # e^X / g(X) * I(X <= 1)
-    values = (
-        np.exp((1 + lambda_value) * X)
-        / lambda_value
-        * (X <= 1)
+    # Proposal density:
+    # g(x) = lambda * exp(-lambda*x)
+    g_X = lambda_value * np.exp(-lambda_value * X)
+
+    # Importance sampling values:
+    # e^X / g(X), but only when X is in [0, 1]
+    values = np.exp(X) / g_X * (X <= 1)
+
+    estimate, lower, upper, standard_error = confidence_interval(
+        values,
+        confidence=confidence
     )
+
+    return estimate, lower, upper, standard_error
+
+import numpy as np
+
+
+def confidence_interval(values, confidence=0.95):
+    values = np.asarray(values)
+
+    estimate = np.mean(values)
+    standard_error = np.std(values, ddof=1) / np.sqrt(len(values))
+
+    z = 1.96
+    lower = estimate - z * standard_error
+    upper = estimate + z * standard_error
+
+    return estimate, lower, upper, standard_error
+
+
+def importance_sampling_integral_optimal_g(n=10_000, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate U ~ Uniform(0, 1)
+    U = rng.uniform(0, 1, size=n)
+
+    # Generate X from g*(x) = e^x / (e - 1), 0 <= x <= 1
+    X = np.log(1 + U * (np.e - 1))
+
+    # Evaluate g*(X)
+    g_X = np.exp(X) / (np.e - 1)
+
+    # Importance sampling values:
+    # e^X / g*(X)
+    values = np.exp(X) / g_X
 
     estimate, lower, upper, standard_error = confidence_interval(
         values,
@@ -351,7 +396,7 @@ def main():
     print(f"Optimal lambda: {optimal_lambda:.4f}")
     print()
 
-    lambda_values = [0.5, 1.0, optimal_lambda, 2.0, 5.0]
+    lambda_values = [optimal_lambda - 0.2, optimal_lambda - 0.1, optimal_lambda, optimal_lambda + 0.1, optimal_lambda + 0.2]
 
     for lambda_value in lambda_values:
         estimate, lower, upper, se = importance_sampling_integral_exponential(
@@ -361,13 +406,30 @@ def main():
         )
 
         analytical_variance = second_moment(lambda_value) - true_value**2
+        true_value = np.e - 1
 
         print(f"lambda = {lambda_value:.4f}")
         print(f"Estimate: {estimate:.6f}")
+        print(f"Exact value: {true_value:.6f}")
+        print(f"Delta: {estimate - true_value:.6f}")
         print(f"95% CI:   [{lower:.6f}, {upper:.6f}]")
         print(f"SE:       {se:.6f}")
         print(f"Analytical variance of one observation: {analytical_variance:.6f}")
         print()
+
+    # Exercise 4-9: importance_sampling_integral_optimal_g
+    print("\nExercise 4-9: Importance Sampling with Optimal g")
+    estimate, lower, upper, se = importance_sampling_integral_optimal_g(
+        n=n,
+        confidence=confidence
+    )
+    true_value = np.e - 1
+    print(f"Estimate: {estimate:.6f}")
+    print(f"Exact value: {true_value:.6f}")
+    print(f"Delta: {estimate - true_value:.6f}")
+    print(f"95% CI:   [{lower:.6f}, {upper:.6f}]")
+    print(f"SE:       {se:.6f}")
+
 
 
 if __name__ == "__main__":
