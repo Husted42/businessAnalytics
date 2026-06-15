@@ -39,6 +39,7 @@ def compare_geometric_distribution(samples, p, max_k=None, save_path="assets/2a_
         for k in k_values
     ])
 
+    print((k_values, simulated_probs))
     theoretical_probs = theoretical_geometric_pmf(k_values, p)
 
     plt.figure(figsize=(10, 5))
@@ -50,6 +51,36 @@ def compare_geometric_distribution(samples, p, max_k=None, save_path="assets/2a_
     plt.title(f"Geometric Distribution Comparison, p = {p}")
     plt.legend()
     plt.savefig(save_path)
+
+def chi_square_test_geometric(samples, p, max_k=None):
+    """
+    Perform chi-squared test to check if samples match theoretical geometric distribution.
+    
+    Returns:
+        statistic: chi-squared test statistic
+        p_value: p-value from the test
+    """
+    if max_k is None:
+        max_k = np.percentile(samples, 99).astype(int)
+    
+    k_values = np.arange(1, max_k + 1)
+    
+    # Observed frequencies
+    observed_counts = np.array([np.sum(samples == k) for k in k_values])
+    tail_observed = np.sum(samples > max_k)
+    observed_counts = np.append(observed_counts, tail_observed)
+    
+    # Expected frequencies
+    theoretical_probs = theoretical_geometric_pmf(k_values, p)
+    tail_prob = 1 - np.sum(theoretical_probs)  # Remaining probability mass
+    theoretical_probs = np.append(theoretical_probs, tail_prob)
+    
+    expected_counts = theoretical_probs * len(samples)
+    
+    # Perform chi-squared test
+    statistic, p_value = chisquare(f_obs=observed_counts, f_exp=expected_counts)
+    
+    return statistic, p_value
 
 ################ ----- Exercise 2-b ----- ################
 
@@ -242,10 +273,16 @@ def time_between_methods(methods, x_values, probabilities, n=10_000, seed=42):
 
 def main():
     ################ ----- Exercise 2-a ----- ################
-    p = [0.01, 0.5, 0.99]
+    p = [0.1, 0.5, 0.9]
     for i, p_val in enumerate(p):
         samples = simulate_geometric(p_val)
         compare_geometric_distribution(samples, p_val, save_path=f"assets/2a_geometric_comparison_{p_val}.png")
+        
+        # Perform chi-squared test
+        chi_stat, p_val_test = chi_square_test_geometric(samples, p_val)
+        print(f"Geometric Distribution (p={p_val}):")
+        print(f"  Chi-Square Statistic: {chi_stat:.4f}")
+        print(f"  p-value: {p_val_test:.4f}\n")
 
 
     ################ ----- Exercise 2-b ----- ################
