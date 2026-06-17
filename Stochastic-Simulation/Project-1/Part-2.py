@@ -2,6 +2,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import t, chi2, kstest
 from scipy.linalg import expm
+import sys
+from contextlib import redirect_stdout
+
+
+class Tee:
+    def __init__(self, *files):
+        self.files = files
+
+    def write(self, text):
+        for file in self.files:
+            file.write(text)
+
+    def flush(self):
+        for file in self.files:
+            file.flush()
+
 
 #################### -------------------- Task 7 -------------------- ####################
 Q = np.array([
@@ -10,6 +26,14 @@ Q = np.array([
     [ 0.0000, 0.0000, -0.0080, 0.0030, 0.0050],
     [ 0.0000, 0.0000, 0.0000, -0.0090, 0.0090],
     [ 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]
+])
+
+Q_treat = np.array([
+    [-0.00475, 0.00250, 0.00125, 0.00000, 0.00100],
+    [ 0.00000, -0.00700, 0.00000, 0.00200, 0.00500],
+    [ 0.00000, 0.00000, -0.00800, 0.00300, 0.00500],
+    [ 0.00000, 0.00000, 0.00000, -0.00900, 0.00900],
+    [ 0.00000, 0.00000, 0.00000, 0.00000, 0.00000]
 ])
 
 
@@ -89,11 +113,13 @@ def summaries(lifetimes, observation_states, n, savepath = "Assets/P2_task7"):
 
     distant_fraction = distant_count / len(observation_states)
 
-    print(f"Mean lifetime: {mean:.2f}")
-    print(f"95% CI for mean: [{mean_ci[0]:.2f}, {mean_ci[1]:.2f}]")
-    print(f"Standard deviation: {sd:.2f}")
-    print(f"95% CI for SD: [{sd_ci[0]:.2f}, {sd_ci[1]:.2f}]")
-    print(f"Distant recurrence after 30.5 months: {distant_fraction:.4f}")
+    print("\nSummary statistics")
+    print("------------------")
+    print(f"Mean lifetime:              {mean:.2f} months")
+    print(f"95% CI for mean:            [{mean_ci[0]:.2f}, {mean_ci[1]:.2f}] months")
+    print(f"Standard deviation:         {sd:.2f} months")
+    print(f"95% CI for SD:              [{sd_ci[0]:.2f}, {sd_ci[1]:.2f}] months")
+    print(f"Distant recurrence rate:    {distant_fraction:.2%}")
 
     plt.hist(lifetimes, bins=30, edgecolor="black")
     plt.xlabel("Lifetime in months")
@@ -125,7 +151,10 @@ def plot_state_distribution(observation_states, t, savepath="Assets/P2_task7_sta
             state_counts[3] += 1
         elif state == 4:
             state_counts[4] += 1
-    print(state_counts)
+
+    print(f"\nState distribution after {t} months:")
+    for name, count in zip(state_names, state_counts):
+        print(f"  {name:22}: {count}")
 
     plt.bar(state_names, state_counts)
     plt.xlabel("State")
@@ -157,13 +186,15 @@ def test_lifetime_distribution(lifetimes, Q):
         lambda times: ctmc_cdf(times, Q)
     )
 
+    print("\nKolmogorov-Smirnov test")
+    print("------------------------")
     print(f"KS statistic: {statistic:.4f}")
-    print(f"p-value: {p_value:.4f}")
+    print(f"p-value:       {p_value:.4f}")
 
     if p_value < 0.05:
-        print("Reject: simulated lifetimes do not follow the theoretical distribution.")
+        print("Conclusion: reject the null hypothesis. Simulated lifetimes do not match the theoretical distribution.")
     else:
-        print("Do not reject: simulated lifetimes are consistent with the theoretical distribution.")
+        print("Conclusion: do not reject the null hypothesis. Simulated lifetimes are consistent with the theoretical distribution.")
 
 #################### -------------------- Task 9 -------------------- ####################
 def survival_function(lifetimes, savepath="Assets/P2_task9_survival"):
@@ -186,12 +217,77 @@ def survival_function(lifetimes, savepath="Assets/P2_task9_survival"):
     plt.savefig(savepath)
     plt.close()
     
+def survival_function_compare(baseline, treatment, savepath="Assets/P2_task9_survival_compare"):
+    baseline = np.sort(np.array(baseline))
+    treatment = np.sort(np.array(treatment))
+    n = len(treatment)
+
+    survival_baseline, survival_treatment = [], []
+
+    if len(baseline) != len(treatment): raise ValueError ("Not the same length")
+    
+    for t in baseline:
+        deaths_baseline = np.sum(baseline <= t)
+        deaths_treatment = np.sum(treatment <= t)
+
+        survival_baseline.append((n - deaths_baseline) / n)
+        survival_treatment.append((n - deaths_treatment) / n)
+
+    plt.step(baseline, survival_baseline, where="post")
+    plt.step(baseline, survival_treatment, where="post")
+    plt.xlabel("Time in months")
+    plt.ylabel("Survival probability")
+    plt.title("Kaplan-Meier survival function")
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(savepath)
+    plt.close()
+
+    return survival_baseline, survival_treatment
+
+def log_rank_test(baseline, treatment):
+    baseline = np.asarray(baseline)
+    treatment = np.asarray(treatment)
+
+    event_times = np.unique(np.concatenate([baseline, treatment]))
+
+    observed = 0
+    expected = 0
+    variance = 0
+
+    for time in event_times:
+        risk_baseline = np.sum(baseline >= time)
+        risk_treatment = np.sum(treatment >= time)
+        total_risk = risk_baseline + risk_treatment
+
+        deaths_baseline = np.sum(baseline == time)
+        total_deaths = deaths_baseline + np.sum(treatment == time)
+
+        if total_risk <= 1:
+            continue
+
+        observed += deaths_baseline
+        expected += total_deaths * risk_baseline / total_risk
+
+        variance += (
+            risk_baseline
+            * risk_treatment
+            * total_deaths
+            * (total_risk - total_deaths)
+            / (total_risk**2 * (total_risk - 1))
+        )
+
+    statistic = (observed - expected) ** 2 / variance
+    p_value = chi2.sf(statistic, df=1)
+
+    return statistic, p_value
+
 def main():
     np.random.seed(42)
     #################### -------------------- Task 7 -------------------- ####################
     print("Task 7 - Simulation")
     deaths = 0
-    n = 10000
+    n = 1000
     lifetimes = []
     observation_states = []
     oberservation_time = 30.5
@@ -203,25 +299,57 @@ def main():
         lifetimes.append(lifetime)
         observation_states.append(state_at_obeservation)
     
-    print(deaths / n)
-    print(np.mean(lifetimes))
+    print("\nTask 7 summary")
+    print("--------------")
+    print(f"Proportion dead by {oberservation_time} months: {deaths / n:.4f}")
+    print(f"Mean simulated lifetime:            {np.mean(lifetimes):.2f} months")
 
     summaries(lifetimes, observation_states, n)
     plot_state_distribution(observation_states, oberservation_time)
 
     #################### -------------------- Task 8 -------------------- ####################
-    print("\n\nTask 8 - Theoretical")
+    print("\n\nTask 8 - Theoretical results")
     death_probability, mean_lifetime = theoretical_ctmc(Q, 30.5)
-    print("death_probability", death_probability,)
-    print("mean lifetime", mean_lifetime,)
+    print(f"Death probability by {oberservation_time} months: {death_probability:.4f}")
+    print(f"Mean lifetime:                         {mean_lifetime:.2f} months")
 
     test_lifetime_distribution(lifetimes, Q)
 
-    #################### -------------------- Task 9 -------------------- ####################
+    #################### -------------------- Task 9 --------------------
+    print("\n\nTask 9 - Treatment analysis")
+    # This is just to see how the function works
     survival_function(lifetimes)
+    death_probability, mean_lifetime = theoretical_ctmc(Q_treat, 30.5)
+    print(f"Treatment death probability by {oberservation_time} months: {death_probability:.4f}")
+    print(f"Treatment mean lifetime:                         {mean_lifetime:.2f} months")
+
+    # Running the actual simulation
+    treat_lifetimes = []
+    treat_observation_states = []
+
+    for i in range(n):
+        lifetime, state_at_obeservation = simulate_woman_ctmc(Q_treat, oberservation_time)
+        treat_lifetimes.append(lifetime)
+        treat_observation_states.append(state_at_obeservation)
+
+    survival_baseline, survival_treatment = survival_function_compare(lifetimes, treat_lifetimes)
+
+    # Does the treatment have an effect?
+    statistic, p_value = log_rank_test(lifetimes, treat_lifetimes)
+    print("\nLog-rank test comparing baseline and treatment")
+    print("--------------------------------------------")
+    print(f"Statistic: {statistic:.4f}")
+    print(f"p-value:   {p_value:.4f}")
+    if p_value < 0.05:
+        print("Conclusion: significant difference in survival curves (reject H0).")
+    else:
+        print("Conclusion: no significant difference detected (do not reject H0).")
+
     return None
 
 
     
 if __name__ == "__main__":
-    main()
+    with open("Log/P2_results.txt", "w") as file:
+        with redirect_stdout(Tee(sys.stdout, file)):
+            main()

@@ -1,0 +1,34 @@
+
+Task 2 - Distribution comparison
+---------------------------------
+Observed distribution shape: (121, 5)
+Expected distribution shape: (121, 5)
+Observed distribution type:  ndarray
+
+Chi-squared result at time step 120:
+  Time:        120
+  Chi-square:  1.7973
+  p-value:     0.7730
+
+Task 3 - Lifetime probabilities
+--------------------------------
+Theoretical P(T = 120):        0.002592
+Theoretical E[T]:             262.3716 months
+Empirical P(T = 120) = 0.004
+Empirical E[T] = 265.035
+
+
+Task 4 : 
+Accepted:  1000  Total :  13979  Percentage:  0.07153587524143358
+Mean lifetime of accepted:  179.861
+
+Task 5:
+
+Task 5 - Control variate estimation
+-----------------------------------
+Crude estimate:              0.735750
+Control variate estimate:    0.736270
+Control coefficient c:       0.001879
+Crude variance:              0.001077
+Control variate variance:    0.000304
+Variance reduction:          71.81%

@@ -1,7 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import chisquare
+import sys
+from contextlib import redirect_stdout
 
+
+class Tee:
+    def __init__(self, *files):
+        self.files = files
+
+    def write(self, text):
+        for file in self.files:
+            file.write(text)
+
+    def flush(self):
+        for file in self.files:
+            file.flush()
 
 
 P_0 = [1, 0, 0, 0, 0]
@@ -303,12 +317,14 @@ def task_5(P, P_0, n_replications=100, n_women=200, limit=350):
         1 - variance_Y / variance_X
     )
 
-    print("Crude estimate:", np.mean(X))
-    print("Control variate estimate:", np.mean(Y))
-    print("c:", c)
-    print("Crude variance:", variance_X)
-    print("Control variate variance:", variance_Y)
-    print(f"Variance reduction: {variance_reduction:.2f}%")
+    print("\nTask 5 - Control variate estimation")
+    print("-----------------------------------")
+    print(f"Crude estimate:              {np.mean(X):.6f}")
+    print(f"Control variate estimate:    {np.mean(Y):.6f}")
+    print(f"Control coefficient c:       {c:.6f}")
+    print(f"Crude variance:              {variance_X:.6f}")
+    print(f"Control variate variance:    {variance_Y:.6f}")
+    print(f"Variance reduction:          {variance_reduction:.2f}%")
 
 def main():
     #################### -------------------- Task 1 -------------------- ####################
@@ -342,40 +358,43 @@ def main():
         P_0,
         axis=0
     )
-    print(
-        "\nPart 2 : Shape of distribution",
-        lst_stage_distribution.shape,
-        lst_stage_distribution_expected.shape,
-        type(lst_stage_distribution)
-    )
+    print("\nTask 2 - Distribution comparison")
+    print("---------------------------------")
+    print(f"Observed distribution shape: {lst_stage_distribution.shape}")
+    print(f"Expected distribution shape: {lst_stage_distribution_expected.shape}")
+    print(f"Observed distribution type:  {type(lst_stage_distribution).__name__}")
 
     chi_squared_results = chi_squared_test(
         lst_stage_distribution,
         lst_stage_distribution_expected,
         n_womens
     )
-    print(chi_squared_results[120])
+    print("\nChi-squared result at time step 120:")
+    print(f"  Time:        {chi_squared_results[120]['Time']}")
+    print(f"  Chi-square:  {chi_squared_results[120]['Chi-squared statistic']:.4f}")
+    print(f"  p-value:     {chi_squared_results[120]['p-value']:.4f}")
 
     #################### -------------------- Task 3 -------------------- ####################
-    print("\n\nTask 3 : ")
+    print("\nTask 3 - Lifetime probabilities")
+    print("--------------------------------")
     probability_at_t = lifetime_probability(P, P_0, t)
     mean_lifetime = expected_lifetime(P, P_0)
 
-    print(f"P(T = {t}) = {probability_at_t}")
-    print(f"E[T] = {mean_lifetime}")
+    print(f"Theoretical P(T = {t}):        {probability_at_t:.6f}")
+    print(f"Theoretical E[T]:             {mean_lifetime:.4f} months")
 
-    empirical_probability_at_t = empirical_lifetime_probability(lifetimes,t)
+    empirical_probability_at_t = empirical_lifetime_probability(lifetimes, t)
     empirical_mean_lifetime = empirical_expected_lifetime(lifetimes)
 
-    print(f"Empirical P(T = {t}) = {empirical_probability_at_t}")
-    print(f"Empirical E[T] = {empirical_mean_lifetime}")
+    print(f"Empirical P(T = {t}):         {empirical_probability_at_t:.6f}")
+    print(f"Empirical E[T]:              {empirical_mean_lifetime:.4f} months")
 
     #################### -------------------- Task 4 -------------------- ####################
-    print("\n\nTask 4 : ")
+    print("\nTask 4 - Conditional sampling")
     total_women = 0
     lst_accepted_lifetimes =  []
     lst_accepted_states = []
-    while len(lst_accepted_lifetimes) < 100: # Todo : Set this to 1000 for report
+    while len(lst_accepted_lifetimes) < 1000: # Todo : Set this to 1000 for report
         total_women += 1
         lifetime, visited_states = simulate_woman(P)
         if lifetime < 12:
@@ -393,4 +412,6 @@ def main():
     task_5(P, P_0)
 
 if __name__ == "__main__":
-    main()
+    with open("Log/P1_results.txt", "w") as file:
+        with redirect_stdout(Tee(sys.stdout, file)):
+            main()

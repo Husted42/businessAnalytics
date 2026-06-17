@@ -1,0 +1,43 @@
+Task 7 - Simulation
+
+Task 7 summary
+--------------
+Proportion dead by 30.5 months: 0.0530
+Mean simulated lifetime:            256.37 months
+
+Summary statistics
+------------------
+Mean lifetime:              256.37 months
+95% CI for mean:            [244.31, 268.43] months
+Standard deviation:         194.38 months
+95% CI for SD:              [186.22, 203.29] months
+Distant recurrence rate:    8.00%
+
+State distribution after 30.5 months:
+  No recurrence         : 764
+  Local recurrence      : 103
+  Distant recurrence    : 71
+  Local and distant     : 9
+  Death                 : 53
+
+
+Task 8 - Theoretical results
+Death probability by 30.5 months: 0.0425
+Mean lifetime:                         262.37 months
+
+Kolmogorov-Smirnov test
+------------------------
+KS statistic: 0.0239
+p-value:       0.6110
+Conclusion: do not reject the null hypothesis. Simulated lifetimes are consistent with the theoretical distribution.
+
+
+Task 9 - Treatment analysis
+Treatment death probability by 30.5 months: 0.0364
+Treatment mean lifetime:                         346.28 months
+
+Log-rank test comparing baseline and treatment
+--------------------------------------------
+Statistic: 67.6457
+p-value:   0.0000
+Conclusion: significant difference in survival curves (reject H0).
