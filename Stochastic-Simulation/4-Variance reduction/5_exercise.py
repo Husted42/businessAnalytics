@@ -300,6 +300,7 @@ def importance_sampling_integral_optimal_g(n=10_000, seed=42, confidence=0.95):
     return estimate, lower, upper, standard_error
 
 def main():
+    np.random.seed(42)
     n = 100
     confidence = 0.95
 
@@ -423,6 +424,7 @@ def main():
         n=n,
         confidence=confidence
     )
+    
     true_value = np.e - 1
     print(f"Estimate: {estimate:.6f}")
     print(f"Exact value: {true_value:.6f}")
