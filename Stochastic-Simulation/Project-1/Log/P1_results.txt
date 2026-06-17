@@ -14,11 +14,10 @@ Task 3 - Lifetime probabilities
 --------------------------------
 Theoretical P(T = 120):        0.002592
 Theoretical E[T]:             262.3716 months
-Empirical P(T = 120) = 0.004
-Empirical E[T] = 265.035
+Empirical P(T = 120):         0.004000
+Empirical E[T]:              265.0350 months
 
-
-Task 4 : 
+Task 4 - Conditional sampling
 Accepted:  1000  Total :  13979  Percentage:  0.07153587524143358
 Mean lifetime of accepted:  179.861
 
