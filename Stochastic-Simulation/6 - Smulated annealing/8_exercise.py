@@ -26,6 +26,7 @@ def run_bootstraping(data, a, b, k, seed):
     return results
 
 def main():
+    ################################ ---------- Exercise 8 - Part 1 ---------- ################################
     data = np.array([56, 101, 78, 67, 93, 87, 64, 72, 80, 69])
     a = -5
     b = 5

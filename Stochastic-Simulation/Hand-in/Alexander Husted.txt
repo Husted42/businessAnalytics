@@ -1,0 +1,3634 @@
+from scipy import stats
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(42)
+
+# ------------------------
+# Task 1 a)
+# ------------------------
+
+def q1_gen_random_numbers(n,seed=42, a=1664525, c=1013904223, m=2**32):
+    """Implement a linear congruential generator (LCG)"""
+    # LCG parameters (example values)
+
+    # Initialize the seed
+    numbers = []
+
+    for _ in range(n):
+        seed = (a * seed + c) % m
+        numbers.append(seed / m)
+
+    return np.array(numbers)
+
+def q1_gen_random_numbers_with_init(n, seed, a, c, m, x_0=0):
+    """Generates random numbers using LCG with an initial seed"""
+    numbers = []
+    x = x_0
+    for _ in range(n):
+        x = (a * x + c) % m
+        numbers.append(x)
+    return np.array(numbers)
+
+def q1_histogram(numbers, prefix=""):
+    # Histogram 
+    plt.clf()
+    plt.hist(numbers, bins=10, edgecolor='black')
+    plt.title('Histogram of Generated Random Numbers')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.savefig(f"assets/{prefix}_q1_histogram.png", dpi=300, bbox_inches="tight")
+
+def q1_scatter_plot(numbers, prefix=""):
+    # Scatter plot
+    plt.clf()
+    plt.scatter(range(len(numbers)), numbers, s=10)
+    plt.title('Scatter Plot of Generated Random Numbers')
+    plt.xlabel('Index')
+    plt.ylabel('Value')
+    plt.savefig(f"assets/{prefix}_q1_scatter_plot.png", dpi=300, bbox_inches="tight")
+
+# ------------------------
+# Task 1 b)
+# ------------------------
+'''
+Evaluate the quality of the generator by graphical
+descriptive statistics (histogrammes, scatter plots) and
+statistical tests - χ2,Kolmogorov-Smirnov, run-tests
+preferably but not necessarily all 3, and correlation test for some h-value
+'''
+
+def q1_chi_square_test(numbers, low, high, bins):
+    """Performs a chi-square test on the generated numbers"""
+    observed, _ = np.histogram(numbers, bins=bins, range=(low, high))
+    expected = [len(numbers) / bins] * bins
+    chi2_statistic, p_value = stats.chisquare(observed, f_exp=expected)
+    print(f"Chi-square statistic: {chi2_statistic}, p-value: {p_value}")
+
+def q1_ks_test(numbers, low, high):
+    """Performs a Kolmogorov-Smirnov test on the generated numbers"""
+    d_statistic, p_value = stats.kstest(numbers, 'uniform', args=(low, high - low))
+    print(f"KS statistic: {d_statistic}, p-value: {p_value}")
+
+def q1_correlation_test(numbers, h):
+    """Performs a correlation test for some h-value"""
+    x = numbers[:-h]
+    y = numbers[h:]
+    correlation_coefficient = np.corrcoef(x, y)[0, 1]
+    print(f"Correlation coefficient for h={h}: {correlation_coefficient}")
+
+def q2_system_random_numbers(n):
+    """Generates random numbers using the system's random number generator"""
+    return np.random.rand(n)
+
+def main():
+    # Task 1a)
+    numbers = q1_gen_random_numbers(n=10000, seed=42, a=15, c=5, m=2**32)
+    q1_histogram(numbers, prefix="task1a")
+    q1_scatter_plot(numbers, prefix="task1a")
+
+    # Task 1b)
+    # Chi-square test
+    q1_chi_square_test(numbers, low=0, high=1, bins=10)
+    # Kolmogorov-Smirnov testStatistical
+    q1_ks_test(numbers, low=0, high=1)
+    # Correlation test for h=1
+    q1_correlation_test(numbers, h=1)
+    # Correlation test for h=5
+    q1_correlation_test(numbers, h=5)
+
+    # Task 2b)
+    a_values = [15, 23, 69]
+    b_values = [5, 1, 420]
+    M_values = [2**32, 10**8 + 1, 2**4]
+    prefix_values = ["LCG1", "LCG2", "LCG3"]
+    print("\nTesting different LCG parameters:")
+    for i in range(len(a_values)):
+        print(f"\nTesting LCG with parameters: a={a_values[i]}, c={b_values[i]}, m={M_values[i]}")
+        numbers = q1_gen_random_numbers(n=10000, seed=42, a=a_values[i], c=b_values[i], m=M_values[i])
+        q1_chi_square_test(numbers, low=0, high=1, bins=10)
+        q1_ks_test(numbers, low=0, high=1)
+        q1_correlation_test(numbers, h=1)
+        q1_correlation_test(numbers, h=5)
+        q1_histogram(numbers, prefix=prefix_values[i])
+
+    # Task 3
+    system_numbers = q2_system_random_numbers(n=10000)
+    q1_histogram(system_numbers, prefix="system_random")
+    q1_chi_square_test(system_numbers, low=0, high=1, bins=10)
+    q1_ks_test(system_numbers, low=0, high=1)
+    q1_correlation_test(system_numbers, h=1)
+    q1_correlation_test(system_numbers, h=5)
+
+    # Test task
+    test_number = q1_gen_random_numbers_with_init(n=10, seed=42, a=5, c=1, m=16, x_0=3)
+    print(test_number[:10])
+
+
+
+if __name__ == "__main__":
+    main()
+
+################ ----- Imports ----- ################
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import chisquare
+import sys
+import time
+
+################ ----- Exercise 2-a ----- ################
+def simulate_geometric(p, n=10_000, seed=42):
+    """
+    Simulate n observations from a geometric distribution.
+
+    X = number of trials until first success.
+    """
+    rng = np.random.default_rng(seed)
+    return rng.geometric(p, size=n)
+
+
+def theoretical_geometric_pmf(k_values, p):
+    """
+    Compute theoretical geometric probabilities.
+
+    P(X = k) = (1 - p)^(k - 1) * p
+    """
+    return (1 - p) ** (k_values - 1) * p
+
+def compare_geometric_distribution(samples, p, max_k=None, save_path="assets/2a_geometric_comparison.png"):
+    """
+    Compare simulated and theoretical geometric distributions
+    using a bar plot.
+    """
+    if max_k is None:
+        max_k = np.percentile(samples, 99).astype(int)
+
+    k_values = np.arange(1, max_k + 1)
+
+    simulated_probs = np.array([
+        np.mean(samples == k)
+        for k in k_values
+    ])
+
+    print((k_values, simulated_probs))
+    theoretical_probs = theoretical_geometric_pmf(k_values, p)
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(k_values - 0.2, simulated_probs, width=0.4, label="Simulated")
+    plt.bar(k_values + 0.2, theoretical_probs, width=0.4, label="Theoretical")
+
+    plt.xlabel("k")
+    plt.ylabel("Probability")
+    plt.title(f"Geometric Distribution Comparison, p = {p}")
+    plt.legend()
+    plt.savefig(save_path)
+
+def chi_square_test_geometric(samples, p, max_k=None):
+    """
+    Perform chi-squared test to check if samples match theoretical geometric distribution.
+    
+    Returns:
+        statistic: chi-squared test statistic
+        p_value: p-value from the test
+    """
+    if max_k is None:
+        max_k = np.percentile(samples, 99).astype(int)
+    
+    k_values = np.arange(1, max_k + 1)
+    
+    # Observed frequencies
+    observed_counts = np.array([np.sum(samples == k) for k in k_values])
+    tail_observed = np.sum(samples > max_k)
+    observed_counts = np.append(observed_counts, tail_observed)
+    
+    # Expected frequencies
+    theoretical_probs = theoretical_geometric_pmf(k_values, p)
+    tail_prob = 1 - np.sum(theoretical_probs)  # Remaining probability mass
+    theoretical_probs = np.append(theoretical_probs, tail_prob)
+    
+    expected_counts = theoretical_probs * len(samples)
+    
+    # Perform chi-squared test
+    statistic, p_value = chisquare(f_obs=observed_counts, f_exp=expected_counts)
+    
+    return statistic, p_value
+
+################ ----- Exercise 2-b ----- ################
+
+def sample_direct(x_values, probabilities, n=10_000, seed=42):
+    """
+    Generate samples from a discrete distribution using the direct method.
+    """
+    rng = np.random.default_rng(seed)
+
+    cumulative_probs = np.cumsum(probabilities)
+    U = rng.uniform(0, 1, n)
+
+    indices = np.searchsorted(cumulative_probs, U)
+
+    return x_values[indices]
+
+def sample_rejection(x_values, probabilities, n=10_000, seed=42):
+    """
+    Generate samples from a discrete distribution using rejection sampling.
+
+    Proposal:
+        Uniform distribution over x_values.
+    """
+    rng = np.random.default_rng(seed)
+
+    m = len(x_values)
+    proposal_prob = 1 / m
+
+    c = np.max(probabilities / proposal_prob)
+
+    samples = []
+
+    while len(samples) < n:
+        # Propose Y uniformly from x_values
+        proposed_index = rng.integers(0, m)
+        Y = x_values[proposed_index]
+
+        # Acceptance probability
+        acceptance_prob = probabilities[proposed_index] / (c * proposal_prob)
+
+        U = rng.uniform(0, 1)
+
+        if U <= acceptance_prob:
+            samples.append(Y)
+
+    return np.array(samples)
+
+def create_alias_table(probabilities):
+    """
+    Create probability and alias tables for the alias method.
+    """
+    n = len(probabilities)
+
+    scaled_probs = probabilities * n
+
+    prob_table = np.zeros(n)
+    alias_table = np.zeros(n, dtype=int)
+
+    small = []
+    large = []
+
+    for i, prob in enumerate(scaled_probs):
+        if prob < 1:
+            small.append(i)
+        else:
+            large.append(i)
+
+    while small and large:
+        small_index = small.pop()
+        large_index = large.pop()
+
+        prob_table[small_index] = scaled_probs[small_index]
+        alias_table[small_index] = large_index
+
+        scaled_probs[large_index] = (
+            scaled_probs[large_index]
+            - (1 - scaled_probs[small_index])
+        )
+
+        if scaled_probs[large_index] < 1:
+            small.append(large_index)
+        else:
+            large.append(large_index)
+
+    for index in large:
+        prob_table[index] = 1
+
+    for index in small:
+        prob_table[index] = 1
+
+    return prob_table, alias_table
+
+
+def sample_alias(x_values, probabilities, n=10_000, seed=42):
+    """
+    Generate samples from a discrete distribution using the alias method.
+    """
+    rng = np.random.default_rng(seed)
+
+    prob_table, alias_table = create_alias_table(probabilities)
+
+    m = len(x_values)
+
+    samples = np.zeros(n, dtype=int)
+
+    for i in range(n):
+        column = rng.integers(0, m)
+        U = rng.uniform(0, 1)
+
+        if U <= prob_table[column]:
+            samples[i] = x_values[column]
+        else:
+            samples[i] = x_values[alias_table[column]]
+
+    return samples
+
+def sample_alias(x_values, probabilities, n=10_000, seed=42):
+    """
+    Generate samples from a discrete distribution using the alias method.
+    """
+    rng = np.random.default_rng(seed)
+
+    prob_table, alias_table = create_alias_table(probabilities)
+
+    m = len(x_values)
+
+    samples = np.zeros(n, dtype=int)
+
+    for i in range(n):
+        column = rng.integers(0, m)
+        U = rng.uniform(0, 1)
+
+        if U <= prob_table[column]:
+            samples[i] = x_values[column]
+        else:
+            samples[i] = x_values[alias_table[column]]
+
+    return samples
+
+def plot_histogram(samples, x_values, probabilities, title, save_path):
+    plt.figure(figsize=(10, 5))
+    plt.bar(x_values - 0.2, probabilities, width=0.4, label="Theoretical")
+    plt.bar(x_values + 0.2, [np.mean(samples == x) for x in x_values], width=0.4, label="Simulated")
+
+    plt.xlabel("x")
+    plt.ylabel("Probability")
+    plt.title(title)
+    plt.legend()
+    plt.savefig(save_path)
+
+
+################ --------------- Exercise 2-b --------------- ################
+def empirical_probabilities(samples, x_values):
+    return np.array([np.mean(samples == x) for x in x_values])
+
+
+def chi_square_accuracy(samples, x_values, probabilities):
+    observed_counts = np.array([np.sum(samples == x) for x in x_values])
+    expected_counts = probabilities * len(samples)
+
+    statistic, p_value = chisquare(
+        f_obs=observed_counts,
+        f_exp=expected_counts
+    )
+
+    return statistic, p_value
+
+
+def total_absolute_error(samples, x_values, probabilities):
+    simulated_probs = empirical_probabilities(samples, x_values)
+    return np.sum(np.abs(simulated_probs - probabilities))
+
+
+def mean_squared_error_distribution(samples, x_values, probabilities):
+    simulated_probs = empirical_probabilities(samples, x_values)
+    return np.mean((simulated_probs - probabilities) ** 2)
+
+def time_between_methods(methods, x_values, probabilities, n=10_000, seed=42):
+    timings = {}
+
+    for method_name, method_func in methods:
+        start_time = time.time()
+        method_func(x_values, probabilities, n=n, seed=seed)
+        end_time = time.time()
+        timings[method_name] = end_time - start_time
+
+    return timings
+
+
+
+def main():
+    ################ ----- Exercise 2-a ----- ################
+    p = [0.1, 0.5, 0.9]
+    for i, p_val in enumerate(p):
+        samples = simulate_geometric(p_val)
+        compare_geometric_distribution(samples, p_val, save_path=f"assets/2a_geometric_comparison_{p_val}.png")
+        
+        # Perform chi-squared test
+        chi_stat, p_val_test = chi_square_test_geometric(samples, p_val)
+        print(f"Geometric Distribution (p={p_val}):")
+        print(f"  Chi-Square Statistic: {chi_stat:.4f}")
+        print(f"  p-value: {p_val_test:.4f}\n")
+
+
+    ################ ----- Exercise 2-b ----- ################
+
+    x_values = np.array([1, 2, 3, 4, 5, 6])
+
+    probabilities = np.array([
+        7 / 48,
+        5 / 48,
+        1 / 8,
+        1 / 16,
+        1 / 4,
+        5 / 16
+    ])
+
+    direct_samples = sample_direct(x_values, probabilities)
+    rejection_samples = sample_rejection(x_values, probabilities)
+    alias_samples = sample_alias(x_values, probabilities)
+
+    for method, samples in zip(
+        ["Direct", "Rejection", "Alias"],
+        [direct_samples, rejection_samples, alias_samples]
+    ):
+        plot_histogram(
+            samples,
+            x_values,
+            probabilities,
+            title=f"{method} Sampling",
+            save_path=f"assets/2b_{method.lower()}_sampling.png"
+        )
+
+    ################ ----- Exercise 2-c ----- ################
+    # Accuracy Metrics
+    for method, samples in zip(
+        ["Direct", "Rejection", "Alias"],
+        [direct_samples, rejection_samples, alias_samples]
+    ):
+        chi_statistic, p_value = chi_square_accuracy(samples, x_values, probabilities)
+        total_error = total_absolute_error(samples, x_values, probabilities)
+        mse = mean_squared_error_distribution(samples, x_values, probabilities)
+
+        print(f"{method} Sampling:")
+        print(f"  Chi-Square Statistic: {chi_statistic:.4f}, p-value: {p_value:.4f}")
+        print(f"  Total Absolute Error: {total_error:.4f}")
+        print(f"  Mean Squared Error: {mse:.6f}\n")
+
+    # Effeciency Metrics
+    methods = [
+        ("Direct", sample_direct),
+        ("Rejection", sample_rejection),
+        ("Alias", sample_alias)
+    ]
+    timings = time_between_methods(methods, x_values, probabilities)
+
+    print("Efficiency Metrics:")
+    for method, time_taken in timings.items():
+        print(f"  {method}: {time_taken:.4f} seconds")
+
+if __name__ == "__main__":
+    main()
+
+
+import numpy as np
+from scipy.stats import kstest
+from scipy.stats import expon, norm, pareto
+import matplotlib.pyplot as plt
+from scipy.stats import t, chi2
+
+################ ----- Exercise 3-a ----- ################
+
+def sample_exponential(lam, n=10_000, seed=42):
+    """
+    Generate samples from Exponential(lambda) using inverse transformation.
+
+    F(x) = 1 - exp(-lambda*x)
+
+    Therefore:
+        X = -log(U) / lambda
+    """
+    rng = np.random.default_rng(seed)
+    U = rng.uniform(0, 1, n)
+
+    return -np.log(U) / lam
+
+
+def sample_normal_box_muller(mu=0, sigma=1, n=10_000, seed=42):
+    """
+    Generate samples from N(mu, sigma^2) using the Box-Muller method.
+
+    Z1 = sqrt(-2 log(U1)) cos(2 pi U2)
+    Z2 = sqrt(-2 log(U1)) sin(2 pi U2)
+    """
+    rng = np.random.default_rng(seed)
+
+    n_pairs = int(np.ceil(n / 2))
+
+    U1 = rng.uniform(0, 1, n_pairs)
+    U2 = rng.uniform(0, 1, n_pairs)
+
+    R = np.sqrt(-2 * np.log(U1))
+
+    Z1 = R * np.cos(2 * np.pi * U2)
+    Z2 = R * np.sin(2 * np.pi * U2)
+
+    Z = np.concatenate([Z1, Z2])[:n]
+
+    return mu + sigma * Z
+
+
+def sample_pareto(k, beta=1, n=10_000, seed=42):
+    """
+    Generate samples from Pareto(k, beta) with support [beta, infinity).
+
+    F(x) = 1 - (beta / x)^k
+
+    Therefore:
+        X = beta * U^(-1/k)
+    """
+    rng = np.random.default_rng(seed)
+    U = rng.uniform(0, 1, n)
+
+    return beta * U ** (-1 / k)
+
+def test_exponential(samples, lam):
+    """
+    Kolmogorov-Smirnov test for Exponential(lambda).
+    """
+    statistic, p_value = kstest(
+        samples,
+        "expon",
+        args=(0, 1 / lam)
+    )
+
+    return statistic, p_value
+
+
+def test_normal(samples, mu, sigma):
+    """
+    Kolmogorov-Smirnov test for N(mu, sigma^2).
+    """
+    statistic, p_value = kstest(
+        samples,
+        "norm",
+        args=(mu, sigma)
+    )
+
+    return statistic, p_value
+
+
+def test_pareto(samples, k, beta=1):
+    """
+    Kolmogorov-Smirnov test for Pareto(k, beta).
+    """
+    statistic, p_value = kstest(
+        samples,
+        "pareto",
+        args=(k, 0, beta)
+    )
+
+    return statistic, p_value
+
+def plot_exponential(samples, lam, save_path="assets/3a_exponential_comparison.png"):
+    """
+    Compare exponential simulation with theoretical density.
+    """
+    x = np.linspace(0, np.percentile(samples, 99.5), 500)
+    theoretical_density = expon.pdf(x, scale=1 / lam)
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(samples, bins=60, density=True, alpha=0.6, label="Simulated")
+    plt.plot(x, theoretical_density, linewidth=2, label="Theoretical")
+    plt.xlabel("x")
+    plt.ylabel("Density")
+    plt.title(f"Exponential Distribution, lambda = {lam}")
+    plt.legend()
+    plt.savefig(save_path)
+
+
+def plot_normal(samples, mu, sigma, save_path="assets/3a_normal_comparison.png"):
+    """
+    Compare normal simulation with theoretical density.
+    """
+    x = np.linspace(
+        np.percentile(samples, 0.5),
+        np.percentile(samples, 99.5),
+        500
+    )
+
+    theoretical_density = norm.pdf(x, loc=mu, scale=sigma)
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(samples, bins=60, density=True, alpha=0.6, label="Simulated")
+    plt.plot(x, theoretical_density, linewidth=2, label="Theoretical")
+    plt.xlabel("x")
+    plt.ylabel("Density")
+    plt.title(f"Normal Distribution, mu = {mu}, sigma = {sigma}")
+    plt.legend()
+    plt.savefig(save_path)
+
+
+def plot_pareto(samples, k, beta=1, save_path="assets/3a_pareto_comparison.png" ):
+    """
+    Compare Pareto simulation with theoretical density.
+    """
+    x = np.linspace(beta, np.percentile(samples, 99.5), 500)
+
+    # scipy.stats.pareto uses shape parameter b = k and scale = beta
+    theoretical_density = pareto.pdf(x, b=k, scale=beta)
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(samples, bins=80, density=True, alpha=0.6, label="Simulated")
+    plt.plot(x, theoretical_density, linewidth=2, label="Theoretical")
+    plt.xlabel("x")
+    plt.xlim(beta, np.percentile(samples, 95))
+    plt.ylabel("Density")
+    plt.title(f"Pareto Distribution, k = {k}, beta = {beta}")
+    plt.legend()
+    plt.savefig(save_path)
+
+################ ----- Exercise 3-b ----- ################
+
+def theoretical_pareto_mean(k, beta=1):
+    """
+    Theoretical mean of Pareto(k, beta), support [beta, infinity).
+
+    E[X] = beta * k / (k - 1), for k > 1
+    """
+    if k <= 1:
+        return np.inf
+
+    return beta * k / (k - 1)
+
+
+def theoretical_pareto_variance(k, beta=1):
+    """
+    Theoretical variance of Pareto(k, beta), support [beta, infinity).
+
+    V[X] = beta^2 * k / ((k - 1)^2 * (k - 2)), for k > 2
+    """
+    if k <= 2:
+        return np.inf
+
+    return beta**2 * k / ((k - 1)**2 * (k - 2))
+
+
+def compare_pareto_mean_variance(k_values, beta=1, n=10_000, seed=42):
+    """
+    Compare simulated sample mean and variance with theoretical values
+    for different Pareto shape parameters k.
+    """
+    print("Pareto mean and variance comparison")
+    print("-" * 80)
+
+    for k in k_values:
+        samples = sample_pareto(
+            k=k,
+            beta=beta,
+            n=n,
+            seed=seed
+        )
+
+        sample_mean = np.mean(samples)
+        sample_variance = np.var(samples, ddof=1)
+
+        theoretical_mean = theoretical_pareto_mean(k, beta)
+        theoretical_variance = theoretical_pareto_variance(k, beta)
+
+        print(f"k = {k}")
+        print(f"Sample mean:          {sample_mean:.4f}")
+        print(f"Theoretical mean:     {theoretical_mean:.4f}")
+        print(f"Mean difference:      {sample_mean - theoretical_mean:.4f}")
+
+        print(f"Sample variance:      {sample_variance:.4f}")
+        print(f"Theoretical variance: {theoretical_variance:.4f}")
+        print(f"Variance difference:  {sample_variance - theoretical_variance:.4f}")
+
+        print("-" * 80)
+
+################ ----- Exercise 3-c ----- ################
+
+
+
+def confidence_interval_mean(samples, confidence_level=0.95):
+    """
+    95% confidence interval for the mean of a normal distribution
+    when sigma is unknown.
+
+    CI:
+        x_bar +/- t_(1-alpha/2, n-1) * s / sqrt(n)
+    """
+    n = len(samples)
+    alpha = 1 - confidence_level
+
+    sample_mean = np.mean(samples)
+    sample_std = np.std(samples, ddof=1)
+
+    t_critical = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = sample_mean - t_critical * sample_std / np.sqrt(n)
+    upper = sample_mean + t_critical * sample_std / np.sqrt(n)
+
+    return lower, upper
+
+
+def confidence_interval_variance(samples, confidence_level=0.95):
+    """
+    95% confidence interval for the variance of a normal distribution.
+
+    CI:
+        ((n-1)s^2 / chi2_(1-alpha/2),
+         (n-1)s^2 / chi2_(alpha/2))
+    """
+    n = len(samples)
+    alpha = 1 - confidence_level
+
+    sample_variance = np.var(samples, ddof=1)
+
+    chi2_lower = chi2.ppf(alpha / 2, df=n - 1)
+    chi2_upper = chi2.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = (n - 1) * sample_variance / chi2_upper
+    upper = (n - 1) * sample_variance / chi2_lower
+
+    return lower, upper
+
+
+def generate_confidence_intervals_normal(
+    mu=0,
+    sigma=1,
+    n=10,
+    number_of_intervals=100,
+    confidence_level=0.95,
+    seed=42
+):
+    """
+    Generate confidence intervals for the mean and variance
+    from repeated normal samples.
+    """
+    rng = np.random.default_rng(seed)
+
+    mean_intervals = []
+    variance_intervals = []
+
+    for _ in range(number_of_intervals):
+        # Generate n normal observations using Box-Muller.
+        # Use a new seed from rng each time to avoid identical samples.
+        sample_seed = rng.integers(0, 1_000_000_000)
+
+        samples = sample_normal_box_muller(
+            mu=mu,
+            sigma=sigma,
+            n=n,
+            seed=sample_seed
+        )
+
+        mean_ci = confidence_interval_mean(
+            samples,
+            confidence_level=confidence_level
+        )
+
+        variance_ci = confidence_interval_variance(
+            samples,
+            confidence_level=confidence_level
+        )
+
+        mean_intervals.append(mean_ci)
+        variance_intervals.append(variance_ci)
+
+    return np.array(mean_intervals), np.array(variance_intervals)
+
+def interval_coverage(intervals, true_value):
+    """
+    Calculate how many confidence intervals contain the true value.
+    """
+    contains_true_value = (
+        (intervals[:, 0] <= true_value)
+        & (true_value <= intervals[:, 1])
+    )
+
+    coverage = np.mean(contains_true_value)
+
+    return coverage, contains_true_value
+
+
+def print_confidence_interval_summary(
+    mean_intervals,
+    variance_intervals,
+    true_mu,
+    true_variance
+):
+    """
+    Print coverage results for mean and variance confidence intervals.
+    """
+    mean_coverage, mean_contains = interval_coverage(
+        mean_intervals,
+        true_mu
+    )
+
+    variance_coverage, variance_contains = interval_coverage(
+        variance_intervals,
+        true_variance
+    )
+
+    print("Confidence interval results")
+    print("-" * 40)
+
+    print(f"Mean intervals containing true mean: {np.sum(mean_contains)} / {len(mean_intervals)}")
+    print(f"Observed mean coverage:             {mean_coverage:.4f}")
+
+    print()
+
+    print(f"Variance intervals containing true variance: {np.sum(variance_contains)} / {len(variance_intervals)}")
+    print(f"Observed variance coverage:             {variance_coverage:.4f}")
+
+    print("-" * 40)
+
+def plot_confidence_intervals(intervals, true_value, title, ylabel, save_path):
+    """
+    Plot confidence intervals and show which intervals contain the true value.
+    """
+    coverage, contains_true_value = interval_coverage(intervals, true_value)
+
+    plt.figure(figsize=(10, 6))
+
+    for i, (lower, upper) in enumerate(intervals):
+        if contains_true_value[i]:
+            plt.plot([i, i], [lower, upper], linewidth=1)
+        else:
+            plt.plot([i, i], [lower, upper], linewidth=2)
+
+    plt.axhline(true_value, linestyle="--", label="True value")
+
+    plt.xlabel("Interval number")
+    plt.ylabel(ylabel)
+    plt.title(f"{title}, observed coverage = {coverage:.2f}")
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
+################ ----- Exercise 3-d ----- ################
+
+import time
+
+
+def sample_pareto_composition(mu=1, n=10_000, seed=42):
+    """
+    Generate Pareto observations using the composition method.
+
+    From the slides:
+        Y ~ Exp(mu)
+        X | Y = y ~ Exp(y)
+
+    This gives a Pareto-type distribution with support [0, infinity):
+
+        F_X(x) = 1 - (1 + x / mu)^(-1)
+
+    So this corresponds to k = 1 and beta = mu
+    for the Pareto distribution on [0, infinity).
+    """
+    rng = np.random.default_rng(seed)
+
+    # Step 1: Generate Y ~ Exp(mu)
+    U1 = rng.uniform(0, 1, n)
+    Y = -np.log(U1) / mu
+
+    # Step 2: Given Y = y, generate X | Y = y ~ Exp(y)
+    U2 = rng.uniform(0, 1, n)
+    X = -np.log(U2) / Y
+
+    return X
+
+
+def sample_pareto_direct_nonnegative(k=1, beta=1, n=10_000, seed=42):
+    """
+    Generate Pareto-type observations on [0, infinity)
+    using direct inversion.
+
+    Formula from the slides:
+
+        F_X(x) = 1 - (1 + x / beta)^(-k)
+
+    Therefore:
+
+        X = beta * (U^(-1/k) - 1)
+    """
+    rng = np.random.default_rng(seed)
+    U = rng.uniform(0, 1, n)
+
+    return beta * (U ** (-1 / k) - 1)
+
+def test_pareto_nonnegative(samples, k=1, beta=1):
+    """
+    KS test for Pareto-type distribution on [0, infinity).
+
+    CDF:
+        F(x) = 1 - (1 + x / beta)^(-k)
+
+    This is equivalent to scipy's Lomax distribution.
+    """
+    from scipy.stats import lomax
+
+    statistic, p_value = kstest(
+        samples,
+        "lomax",
+        args=(k, 0, beta)
+    )
+
+    return statistic, p_value
+
+
+def plot_pareto_composition_comparison(
+    composition_samples,
+    direct_samples,
+    k=1,
+    beta=1,
+    save_path="assets/3d_pareto_composition_vs_direct.png"
+):
+    """
+    Compare Pareto composition method with direct inversion method.
+    """
+    from scipy.stats import lomax
+
+    upper = min(
+        np.percentile(composition_samples, 99),
+        np.percentile(direct_samples, 99)
+    )
+
+    x = np.linspace(0, upper, 500)
+    theoretical_density = lomax.pdf(x, c=k, scale=beta)
+
+    plt.figure(figsize=(8, 5))
+
+    plt.hist(
+        composition_samples,
+        bins=80,
+        density=True,
+        alpha=0.5,
+        label="Composition method"
+    )
+
+    plt.hist(
+        direct_samples,
+        bins=80,
+        density=True,
+        alpha=0.5,
+        label="Direct inversion"
+    )
+
+    plt.plot(
+        x,
+        theoretical_density,
+        linewidth=2,
+        label="Theoretical density"
+    )
+
+    plt.xlabel("x")
+    plt.ylabel("Density")
+    plt.title("Pareto on [0, infinity): composition vs direct inversion")
+    plt.xlim(0, upper)
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
+
+def main():
+    ################ ----- Exercise 3-a ----- ################
+    # Exponential
+    lam = 0.5
+    exp_samples = sample_exponential(lam)
+    exp_statistic, exp_p_value = test_exponential(exp_samples, lam)
+    print(f"Exponential: KS Statistic = {exp_statistic:.4f}, p-value = {exp_p_value:.4f}")
+    plot_exponential(exp_samples, lam, save_path="assets/3a_exponential_comparison.png")
+
+    # Normal
+    mu, sigma = 0, 1
+    normal_samples = sample_normal_box_muller(mu, sigma)
+    normal_statistic, normal_p_value = test_normal(normal_samples, mu, sigma)
+    print(f"Normal: KS Statistic = {normal_statistic:.4f}, p-value = {normal_p_value:.4f}")
+    plot_normal(normal_samples, mu, sigma, save_path="assets/3a_normal_comparison.png")
+
+    # Pareto
+    k, beta = 2, 1
+    pareto_samples = sample_pareto(k, beta)
+    pareto_statistic, pareto_p_value = test_pareto(pareto_samples, k, beta)
+    print(f"Pareto: KS Statistic = {pareto_statistic:.4f}, p-value = {pareto_p_value:.4f}")
+    plot_pareto(pareto_samples, k, beta, save_path="assets/3a_pareto_comparison.png")
+    
+    # Try wth different k-values
+    k_values = [2.05, 2.5, 3, 4]
+    for k in k_values:
+        pareto_samples = sample_pareto(k, beta)
+        pareto_statistic, pareto_p_value = test_pareto(pareto_samples, k, beta)
+        print(f"Pareto (k={k}): KS Statistic = {pareto_statistic:.4f}, p-value = {pareto_p_value:.4f}")
+        plot_pareto(
+            pareto_samples,
+            k,
+            beta,
+            save_path=f"assets/3a_pareto_comparison_k_{k}.png"
+        )
+
+    ################ ----- Exercise 3-b ----- ################
+
+    beta = 1
+    k_values = [2.05, 2.5, 3, 4]
+
+    compare_pareto_mean_variance(
+        k_values=k_values,
+        beta=beta,
+        n=10_000,
+        seed=42
+    )
+
+    ################ ----- Exercise 3-c ----- ################
+
+    mu = 0
+    sigma = 1
+    true_variance = sigma**2
+
+    mean_intervals, variance_intervals = generate_confidence_intervals_normal(
+        mu=mu,
+        sigma=sigma,
+        n=10,
+        number_of_intervals=100,
+        confidence_level=0.95,
+        seed=42
+    )
+
+    print_confidence_interval_summary(
+        mean_intervals=mean_intervals,
+        variance_intervals=variance_intervals,
+        true_mu=mu,
+        true_variance=true_variance
+    )
+
+    plot_confidence_intervals(
+        intervals=mean_intervals,
+        true_value=mu,
+        title="95% confidence intervals for the mean",
+        ylabel="Mean",
+        save_path="assets/3c_mean_confidence_intervals.png"
+    )
+
+    plot_confidence_intervals(
+        intervals=variance_intervals,
+        true_value=true_variance,
+        title="95% confidence intervals for the variance",
+        ylabel="Variance",
+        save_path="assets/3c_variance_confidence_intervals.png"
+    )
+
+    ################ ----- Exercise 3-d ----- ################
+
+    mu = 1
+    beta = mu
+    k = 1
+    n = 10_000
+
+    start = time.perf_counter()
+    pareto_composition_samples = sample_pareto_composition(
+        mu=mu,
+        n=n,
+        seed=42
+    )
+    composition_time = time.perf_counter() - start
+
+    start = time.perf_counter()
+    pareto_direct_samples = sample_pareto_direct_nonnegative(
+        k=k,
+        beta=beta,
+        n=n,
+        seed=42
+    )
+    direct_time = time.perf_counter() - start
+
+    comp_statistic, comp_p_value = test_pareto_nonnegative(
+        pareto_composition_samples,
+        k=k,
+        beta=beta
+    )
+
+    direct_statistic, direct_p_value = test_pareto_nonnegative(
+        pareto_direct_samples,
+        k=k,
+        beta=beta
+    )
+
+    print("Pareto composition method")
+    print("-" * 40)
+    print(f"KS Statistic: {comp_statistic:.4f}")
+    print(f"p-value:      {comp_p_value:.4f}")
+    print(f"Runtime:      {composition_time:.6f} seconds")
+    print()
+
+    print("Pareto direct inversion method")
+    print("-" * 40)
+    print(f"KS Statistic: {direct_statistic:.4f}")
+    print(f"p-value:      {direct_p_value:.4f}")
+    print(f"Runtime:      {direct_time:.6f} seconds")
+    print()
+
+    plot_pareto_composition_comparison(
+        composition_samples=pareto_composition_samples,
+        direct_samples=pareto_direct_samples,
+        k=k,
+        beta=beta,
+        save_path="assets/3d_pareto_composition_vs_direct.png"
+    )
+
+    print(f"Composition sample mean: {np.mean(pareto_composition_samples):.4f}")
+    print(f"Direct sample mean:      {np.mean(pareto_direct_samples):.4f}")
+    print("Theoretical mean:        infinite for k = 1")
+
+if __name__ == "__main__":
+    main()
+
+import numpy as np
+from scipy.stats import t
+import matplotlib.pyplot as plt
+
+from scipy.stats import norm
+import numpy as np
+
+import math
+
+
+def erlang_b(m, A):
+    numerator = A**m / math.factorial(m)
+    denominator = sum(A**i / math.factorial(i) for i in range(m + 1))
+    return numerator / denominator
+
+
+#################### -------------------- Exercise 4.1 -------------------- ####################
+def simulate_blocking_system_erlang(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    erlang_k=2,
+    seed=None
+):
+    """
+    Simulate a blocking system with:
+        - m parallel servers
+        - no waiting room
+        - Erlang inter-arrival times with mean 1
+        - exponential service times
+
+    Returns:
+        blocking_fraction : float
+            Fraction of customers that were blocked.
+
+        times : np.ndarray
+            Arrival times of the customers.
+
+        servers_in_use : np.ndarray
+            Number of busy servers after each arrival.
+
+        blocked_customers : int
+            Total number of blocked customers.
+    """
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    # Stores the departure time of each currently busy server
+    busy_until = []
+
+    # Values used for the stairs plot
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate next arrival time
+        # Erlang(k, rate=k) has mean k / k = 1
+        inter_arrival = rng.gamma(shape=erlang_k, scale=1 / erlang_k)
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            service_time = rng.exponential(scale=mean_service_time)
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        # Save system state after this arrival
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    if np.mean(inter_arrival_times) > 1.5 or np.mean(inter_arrival_times) < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1, check the Erlang generation.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+
+def plot_servers_in_use(times, servers_in_use, m=10, n_plot=300, save_path="Assets/4a_servers_in_use.png"):
+    """
+    Draw a stairs plot of how many servers are in use over time.
+
+    Parameters
+    ----------
+    times : array-like
+        Arrival times from the simulation.
+    servers_in_use : array-like
+        Number of busy servers after each arrival.
+    m : int
+        Total number of servers.
+    n_plot : int
+        Number of arrival events to plot.
+    save_path : str
+        Path to save the plot.
+    """
+
+    plt.figure(figsize=(12, 5))
+
+    plt.step(
+        times[:n_plot],
+        servers_in_use[:n_plot],
+        where="post",
+        label="Servers in use"
+    )
+
+    plt.axhline(
+        y=m,
+        linestyle="--",
+        label=f"Maximum servers = {m}"
+    )
+
+    plt.xlabel("Simulation time")
+    plt.ylabel("Number of servers in use")
+    plt.title("Number of Busy Servers Over Time")
+    plt.ylim(0, m + 1)
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+def normal_confidence_interval(theta_hat_values, alpha=0.05):
+
+    theta_hat_values = np.array(theta_hat_values)
+
+    n = len(theta_hat_values)
+
+    theta_bar = np.mean(theta_hat_values)
+    S_theta = np.std(theta_hat_values, ddof=1)
+
+    u_alpha_2 = norm.ppf(alpha / 2)
+    u_1_alpha_2 = norm.ppf(1 - alpha / 2)
+
+    lower = theta_bar + (S_theta / np.sqrt(n)) * u_alpha_2
+    upper = theta_bar + (S_theta / np.sqrt(n)) * u_1_alpha_2
+
+    return theta_bar, S_theta, lower, upper
+
+def plot_confidence_intervals(
+    k_values,
+    theta_bars,
+    lower_bounds,
+    upper_bounds,
+    save_path="Assets/4a_confidence_intervals.png"
+):
+
+    k_values = np.array(k_values)
+    theta_bars = np.array(theta_bars)
+    lower_bounds = np.array(lower_bounds)
+    upper_bounds = np.array(upper_bounds)
+
+    lower_errors = theta_bars - lower_bounds
+    upper_errors = upper_bounds - theta_bars
+
+    plt.figure(figsize=(10, 5))
+
+    plt.errorbar(
+        k_values,
+        theta_bars,
+        yerr=[lower_errors, upper_errors],
+        fmt="o",
+        capsize=5,
+        label="95% confidence interval"
+    )
+
+    plt.xlabel("Erlang shape parameter k")
+    plt.ylabel("Blocking fraction")
+    plt.title("Blocking Fraction with 95% Confidence Intervals")
+    plt.grid(True)
+    plt.legend()
+
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+################### -------------------- Exercise 4.b) -------------------- ####################
+
+def simulate_blocking_system_hyperexponential(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    p1=0.8,
+    lambda1=0.8333,
+    p2=0.2,
+    lambda2=5.0,
+    seed=None
+):
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    busy_until = []
+
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate hyperexponential inter-arrival time
+        U = rng.uniform()
+
+        if U < p1:
+            inter_arrival = rng.exponential(scale=1 / lambda1)
+        else:
+            inter_arrival = rng.exponential(scale=1 / lambda2)
+
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            service_time = rng.exponential(scale=mean_service_time)
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    mean_inter_arrival = np.mean(inter_arrival_times)
+
+    if mean_inter_arrival > 1.5 or mean_inter_arrival < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+################### -------------------- Exercise 4.3) -------------------- ####################
+
+def run_simulation(func = simulate_blocking_system_erlang, n_replications=10, **kwargs):
+    blocking_fractions = []
+
+    for i in range(n_replications):
+        blocking_fraction, times, servers_in_use, blocked_customers = func(
+            seed=kwargs.get("seed", 42) + i,
+            **{k: v for k, v in kwargs.items() if k != "seed"}
+        )
+
+        blocking_fractions.append(blocking_fraction)
+
+    blocking_fractions = np.array(blocking_fractions)
+
+    mean_blocking_fraction = np.mean(blocking_fractions)
+
+    return blocking_fractions, mean_blocking_fraction, times, servers_in_use, blocked_customers
+
+def simulate_blocking_system_erlang_constant(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    erlang_k=2,
+    seed=None
+):
+    """
+    Simulate a blocking system with:
+        - m parallel servers
+        - no waiting room
+        - Erlang inter-arrival times with mean 1
+        - exponential service times
+
+    Returns:
+        blocking_fraction : float
+            Fraction of customers that were blocked.
+
+        times : np.ndarray
+            Arrival times of the customers.
+
+        servers_in_use : np.ndarray
+            Number of busy servers after each arrival.
+
+        blocked_customers : int
+            Total number of blocked customers.
+    """
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    # Stores the departure time of each currently busy server
+    busy_until = []
+
+    # Values used for the stairs plot
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate next arrival time
+        # Erlang(k, rate=k) has mean k / k = 1
+        inter_arrival = rng.gamma(shape=erlang_k, scale=1 / erlang_k)
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            service_time = mean_service_time
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        # Save system state after this arrival
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    if np.mean(inter_arrival_times) > 1.5 or np.mean(inter_arrival_times) < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1, check the Erlang generation.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+def simulate_blocking_system_erlang_patero_105(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    erlang_k=2,
+    seed=None
+):
+    """
+    Simulate a blocking system with:
+        - m parallel servers
+        - no waiting room
+        - Erlang inter-arrival times with mean 1
+        - exponential service times
+
+    Returns:
+        blocking_fraction : float
+            Fraction of customers that were blocked.
+
+        times : np.ndarray
+            Arrival times of the customers.
+
+        servers_in_use : np.ndarray
+            Number of busy servers after each arrival.
+
+        blocked_customers : int
+            Total number of blocked customers.
+    """
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    # Stores the departure time of each currently busy server
+    busy_until = []
+
+    # Values used for the stairs plot
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate next arrival time
+        # Erlang(k, rate=k) has mean k / k = 1
+        inter_arrival = rng.gamma(shape=erlang_k, scale=1 / erlang_k)
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            # Patero service time with  k = 1.05
+            pareto_scale = mean_service_time * (1.05 - 1) / 1.05
+            U = rng.uniform()
+            service_time = pareto_scale * U ** (-1 / 1.05)
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        # Save system state after this arrival
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    if np.mean(inter_arrival_times) > 1.5 or np.mean(inter_arrival_times) < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1, check the Erlang generation.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+
+
+def simulate_blocking_system_erlang_patero_205(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    erlang_k=2,
+    seed=None
+):
+    """
+    Simulate a blocking system with:
+        - m parallel servers
+        - no waiting room
+        - Erlang inter-arrival times with mean 1
+        - exponential service times
+
+    Returns:
+        blocking_fraction : float
+            Fraction of customers that were blocked.
+
+        times : np.ndarray
+            Arrival times of the customers.
+
+        servers_in_use : np.ndarray
+            Number of busy servers after each arrival.
+
+        blocked_customers : int
+            Total number of blocked customers.
+    """
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    # Stores the departure time of each currently busy server
+    busy_until = []
+
+    # Values used for the stairs plot
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate next arrival time
+        # Erlang(k, rate=k) has mean k / k = 1
+        inter_arrival = rng.gamma(shape=erlang_k, scale=1 / erlang_k)
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            # Patero service time with  k = 2.05
+            pareto_scale = mean_service_time * (2.05 - 1) / 2.05
+            U = rng.uniform()
+            service_time = pareto_scale * U ** (-1 / 2.05)
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        # Save system state after this arrival
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    if np.mean(inter_arrival_times) > 1.5 or np.mean(inter_arrival_times) < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1, check the Erlang generation.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+def simulate_blocking_system_erlang_gaussian(
+    m=10,
+    mean_service_time=8,
+    n_customers=10_000,
+    erlang_k=2,
+    seed=None
+):
+    """
+    Simulate a blocking system with:
+        - m parallel servers
+        - no waiting room
+        - Erlang inter-arrival times with mean 1
+        - exponential service times
+
+    Returns:
+        blocking_fraction : float
+            Fraction of customers that were blocked.
+
+        times : np.ndarray
+            Arrival times of the customers.
+
+        servers_in_use : np.ndarray
+            Number of busy servers after each arrival.
+
+        blocked_customers : int
+            Total number of blocked customers.
+    """
+
+    rng = np.random.default_rng(seed)
+
+    current_time = 0.0
+    blocked_customers = 0
+
+    # Stores the departure time of each currently busy server
+    busy_until = []
+
+    # Values used for the stairs plot
+    times = []
+    servers_in_use = []
+    inter_arrival_times = []
+
+    for _ in range(n_customers):
+
+        # Generate next arrival time
+        # Erlang(k, rate=k) has mean k / k = 1
+        inter_arrival = rng.gamma(shape=erlang_k, scale=1 / erlang_k)
+        inter_arrival_times.append(inter_arrival)
+        current_time += inter_arrival
+
+        # Remove customers whose service has finished
+        busy_until = [
+            departure_time
+            for departure_time in busy_until
+            if departure_time > current_time
+        ]
+
+        # Check whether a server is available
+        if len(busy_until) >= m:
+            blocked_customers += 1
+        else:
+            # gaussian service time with mean = mean_service_time and std = mean_service_time / 2
+            service_time = rng.normal(loc=mean_service_time, scale=mean_service_time / 2)
+            departure_time = current_time + service_time
+            busy_until.append(departure_time)
+
+        # Save system state after this arrival
+        times.append(current_time)
+        servers_in_use.append(len(busy_until))
+
+    blocking_fraction = blocked_customers / n_customers
+
+    if np.mean(inter_arrival_times) > 1.5 or np.mean(inter_arrival_times) < 0.5:
+        print("Warning: Mean inter-arrival time is not close to 1, check the Erlang generation.")
+
+    return (
+        blocking_fraction,
+        np.array(times),
+        np.array(servers_in_use),
+        blocked_customers
+    )
+
+def main():
+    #################### -------------------- Exercise 4.1 -------------------- ####################
+    m = 10
+    mean_service_time = 8
+    n_customers = 10_000
+    n_replications = 10
+    erlang_k = 1
+    seed = 42
+    arrivalrate = 1
+
+    blocking_fractions = []
+
+    for i in range(n_replications):
+        blocking_fraction, times, servers_in_use, blocked_customers = simulate_blocking_system_erlang(
+            m=m,
+            mean_service_time=mean_service_time,
+            n_customers=n_customers,
+            erlang_k=erlang_k,
+            seed=seed + i
+        )
+
+        blocking_fractions.append(blocking_fraction)
+
+    blocking_fractions = np.array(blocking_fractions)
+
+    mean_blocking_fraction = np.mean(blocking_fractions)
+
+    print("Exercise 4.1")
+    print("------------")
+    print(f"Blocking fractions: {blocking_fractions}")
+    print(f"Mean blocking fraction: {mean_blocking_fraction:.4f}")
+
+    plot_servers_in_use(
+        times,
+        servers_in_use,
+        m=m,
+        n_plot=300,
+        save_path="Assets/4a_servers_in_use.png"
+    )
+
+    # Exact Erlang B solution
+    A = mean_service_time * arrivalrate
+    exact_blocking_probability = erlang_b(m, A)
+    print(f"Exact blocking probability: {exact_blocking_probability:.4f}")
+
+    ################### -------------------- Exercise 4.2 a) -------------------- ####################
+    erlang_k_values = list(np.arange(0.5, 10.5, 0.5))  # More k values for smoother plot
+
+    print()
+    print("Exercise 4.2 a)")
+    print("---------------") 
+
+
+    alpha = 0.05
+
+    theta_bars = []
+    lower_bounds = []
+    upper_bounds = []
+
+    for k in erlang_k_values:
+        theta_hat_values = []
+
+        for i in range(n_replications):
+            blocking_fraction, _, _, _ = simulate_blocking_system_erlang(
+                m=m,
+                mean_service_time=mean_service_time,
+                n_customers=n_customers,
+                erlang_k=k,
+                seed=seed + i
+            )
+
+            theta_hat_values.append(blocking_fraction)
+
+        theta_hat_values = np.array(theta_hat_values)
+
+        theta_bar, S_theta, lower, upper = normal_confidence_interval(
+            theta_hat_values,
+            alpha=alpha
+        )
+
+        theta_bars.append(theta_bar)
+        lower_bounds.append(lower)
+        upper_bounds.append(upper)
+
+        print(f"Erlang k={k}")
+        print(f"theta_hat_values = {theta_hat_values}")
+        print(f"theta_bar = {theta_bar:.4f}")
+        print(f"S_theta = {S_theta:.4f}")
+        print(f"95% confidence interval: [{lower:.4f}, {upper:.4f}]")
+        print()
+
+    plot_confidence_intervals(
+        k_values=erlang_k_values,
+        theta_bars=theta_bars,
+        lower_bounds=lower_bounds,
+        upper_bounds=upper_bounds,
+        save_path="Assets/4a_confidence_intervals.png"
+    )
+    ################### -------------------- Exercise 4.2 b) -------------------- ####################
+    print("Exercise 4.2 b)")
+    print("---------------")
+    
+    blocking_fractions = []
+    for i in range(n_replications):
+        blocking_fraction, times, servers_in_use, blocked_customers = simulate_blocking_system_hyperexponential(
+            m=m,
+            mean_service_time=mean_service_time,
+            n_customers=n_customers,
+            p1=0.8,
+            lambda1=0.8333,
+            p2=0.2,
+            lambda2=5.0,
+            seed=seed + i
+        )
+
+        blocking_fractions.append(blocking_fraction)
+
+    blocking_fractions = np.array(blocking_fractions)
+
+    mean_blocking_fraction = np.mean(blocking_fractions)
+
+    plot_servers_in_use(
+        times,
+        servers_in_use,
+        m=m,
+        n_plot=300,
+        save_path="Assets/4a_servers_in_use.png"
+    )
+
+    # Confidence interval for hyperexponential case
+    theta_bar, S_theta, lower, upper = normal_confidence_interval(
+        blocking_fractions,
+        alpha=alpha
+    )
+    print(f"Mean blocking fraction: {mean_blocking_fraction:.4f}")
+    print(f"95% confidence interval for hyperexponential case: [{lower:.4f}, {upper:.4f}]")
+
+    ################### -------------------- Exercise 4.3) -------------------- ####################
+    print("\n\nExercise 4.3")
+    for func in [
+            simulate_blocking_system_erlang_constant, 
+            simulate_blocking_system_erlang_patero_105,
+            simulate_blocking_system_erlang_patero_205,
+            simulate_blocking_system_erlang_gaussian
+        ]:
+        blocking_fractions, mean_blocking_fraction, times, servers_in_use, blocked_customers = run_simulation(
+            func=func,
+            n_replications=n_replications,
+            m=m,
+            mean_service_time=mean_service_time,
+            n_customers=n_customers,
+            erlang_k=erlang_k,
+            seed=seed
+        )
+
+        print(f"Results for {func.__name__}:")
+        print(f"Blocking fractions: {blocking_fractions}")
+        print(f"Mean blocking fraction: {mean_blocking_fraction:.4f}")
+        print(f"Total blocked customers: {blocked_customers}")
+        print()
+
+        # Confidence interval for the blocking fraction
+        theta_bar, S_theta, lower, upper = normal_confidence_interval(
+            blocking_fractions,
+            alpha=alpha
+        )
+        print(f"95% confidence interval for {func.__name__}: [{lower:.4f}, {upper:.4f}]")
+        print()
+
+if __name__ == "__main__":
+    main()
+    
+import numpy as np
+from scipy.stats import norm, t
+from scipy.optimize import minimize_scalar
+
+################ ----- Exercise 4-a ----- ################
+
+def crude_monte_carlo_integral(n=100, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate U_i ~ Uniform(0, 1)
+    U = rng.uniform(0, 1, n)
+
+    # Compute X_i = exp(U_i)
+    X = np.exp(U)
+
+    # Point estimate
+    estimate = np.mean(X)
+
+    # Sample standard deviation and standard error
+    sample_std = np.std(X, ddof=1)
+    standard_error = sample_std / np.sqrt(n)
+
+    # t-based confidence interval
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper
+
+################ ----- Exercise 4-b ----- ################
+
+def antithetic_integral(n=100, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate U_i ~ Uniform(0, 1)
+    U = rng.uniform(0, 1, n)
+
+    # Antithetic estimator:
+    # Y_i = (exp(U_i) + exp(1 - U_i)) / 2
+    Y = (np.exp(U) + np.exp(1 - U)) / 2
+
+    # Point estimate
+    estimate = np.mean(Y)
+
+    # Sample standard deviation and standard error
+    sample_std = np.std(Y, ddof=1)
+    standard_error = sample_std / np.sqrt(n)
+
+    # t-based confidence interval
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper
+
+################ ----- Exercise 4-c ----- ################
+
+def control_variate_integral(n=100, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate U_i ~ Uniform(0, 1)
+    U = rng.uniform(0, 1, n)
+
+    # Original variable
+    X = np.exp(U)
+
+    # Control variate: U has known expectation E[U] = 1/2
+    mu_U = 0.5
+
+    # Approximately optimal coefficient from the slides
+    c = -1.69
+
+    # Control variate estimator
+    Y = X + c * (U - mu_U)
+
+    # Point estimate
+    estimate = np.mean(Y)
+
+    # Sample standard deviation and standard error
+    sample_std = np.std(Y, ddof=1)
+    standard_error = sample_std / np.sqrt(n)
+
+    # t-based confidence interval
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper
+
+################ ----- Exercise 4-d ----- ################
+
+def stratified_sampling_integral(n=100, n_strata=10, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Number of samples in each stratum
+    samples_per_stratum = n // n_strata
+
+    stratum_estimates = []
+
+    for j in range(n_strata):
+        lower_bound = j / n_strata
+        upper_bound = (j + 1) / n_strata
+
+        # Generate samples from stratum j
+        U = rng.uniform(lower_bound, upper_bound, samples_per_stratum)
+
+        # Estimate contribution from this stratum
+        stratum_mean = np.mean(np.exp(U))
+        stratum_estimates.append(stratum_mean)
+
+    stratum_estimates = np.array(stratum_estimates)
+
+    # Since all strata have equal width, average the stratum means
+    estimate = np.mean(stratum_estimates)
+
+    # For confidence interval:
+    # Repeat the stratified estimate several times by treating each row as one replication.
+    # Here we restructure the simulation into samples_per_stratum independent stratified replications.
+    Y = []
+
+    for i in range(samples_per_stratum):
+        values = []
+
+        for j in range(n_strata):
+            lower_bound = j / n_strata
+            upper_bound = (j + 1) / n_strata
+
+            U = rng.uniform(lower_bound, upper_bound)
+            values.append(np.exp(U))
+
+        Y_i = np.mean(values)
+        Y.append(Y_i)
+
+    Y = np.array(Y)
+
+    estimate = np.mean(Y)
+
+    sample_std = np.std(Y, ddof=1)
+    standard_error = sample_std / np.sqrt(samples_per_stratum)
+
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=samples_per_stratum - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper
+
+################ ----- Exercise 5-7 ----- ################
+
+def confidence_interval(values, confidence=0.95):
+    """
+    Computes a t-based confidence interval for the mean of the given values.
+    """
+    n = len(values)
+    estimate = np.mean(values)
+    sample_std = np.std(values, ddof=1)
+    standard_error = sample_std / np.sqrt(n)
+
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper, standard_error
+
+
+def crude_mc_tail_probability(a, n=10_000, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate Z_i ~ N(0, 1)
+    Z = rng.normal(loc=0, scale=1, size=n)
+
+    # Indicator I(Z_i > a)
+    indicators = (Z > a).astype(float)
+
+    estimate, lower, upper, standard_error = confidence_interval(
+        indicators,
+        confidence=confidence
+    )
+
+    return estimate, lower, upper, standard_error
+
+
+def importance_sampling_tail_probability(a, n=10_000, sigma=1, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate X_i ~ N(a, sigma^2)
+    Y = rng.normal(loc=a, scale=sigma, size=n)
+    f = norm.pdf(Y, loc=0, scale=1)
+    g = norm.pdf(Y, loc=a, scale=sigma)
+    values = (Y > a).astype(float) * f / g
+
+    estimate, lower, upper, standard_error = confidence_interval(
+        values,
+        confidence=confidence
+    )
+
+    return estimate, lower, upper, standard_error
+
+################ ----- Exercise 5-h ----- ################ 
+
+def confidence_interval(values, confidence=0.95):
+    n = len(values)
+
+    estimate = np.mean(values)
+    sample_std = np.std(values, ddof=1)
+    standard_error = sample_std / np.sqrt(n)
+
+    alpha = 1 - confidence
+    t_value = t.ppf(1 - alpha / 2, df=n - 1)
+
+    lower = estimate - t_value * standard_error
+    upper = estimate + t_value * standard_error
+
+    return estimate, lower, upper, standard_error
+
+
+def second_moment(lambda_value):
+    """
+    Analytical second moment of the importance sampling estimator.
+    We minimize this to find the optimal lambda.
+    """
+    return (np.exp(lambda_value + 2) - 1) / (
+        lambda_value * (lambda_value + 2)
+    )
+
+
+def importance_sampling_integral_exponential(
+    n=10_000,
+    lambda_value=1.0,
+    seed=42,
+    confidence=0.95
+):
+    rng = np.random.default_rng(seed)
+
+    # Generate samples from the proposal distribution:
+    # X ~ Exp(lambda)
+    X = rng.exponential(scale=1 / lambda_value, size=n)
+
+    # Proposal density:
+    # g(x) = lambda * exp(-lambda*x)
+    g_X = lambda_value * np.exp(-lambda_value * X)
+
+    # Importance sampling values:
+    # e^X / g(X), but only when X is in [0, 1]
+    values = np.exp(X) / g_X * (X <= 1)
+
+    estimate, lower, upper, standard_error = confidence_interval(
+        values,
+        confidence=confidence
+    )
+
+    return estimate, lower, upper, standard_error
+
+
+
+def confidence_interval(values, confidence=0.95):
+    values = np.asarray(values)
+
+    estimate = np.mean(values)
+    standard_error = np.std(values, ddof=1) / np.sqrt(len(values))
+
+    z = 1.96
+    lower = estimate - z * standard_error
+    upper = estimate + z * standard_error
+
+    return estimate, lower, upper, standard_error
+
+
+def importance_sampling_integral_optimal_g(n=10_000, seed=42, confidence=0.95):
+    rng = np.random.default_rng(seed)
+
+    # Generate U ~ Uniform(0, 1)
+    U = rng.uniform(0, 1, size=n)
+
+    # Generate X from g*(x) = e^x / (e - 1), 0 <= x <= 1
+    X = np.log(1 + U * (np.e - 1))
+
+    # Evaluate g*(X)
+    g_X = np.exp(X) / (np.e - 1)
+
+    # Importance sampling values:
+    # e^X / g*(X)
+    values = np.exp(X) / g_X
+
+    estimate, lower, upper, standard_error = confidence_interval(
+        values,
+        confidence=confidence
+    )
+
+    return estimate, lower, upper, standard_error
+
+def main():
+    n = 100
+    confidence = 0.95
+
+    # Exercise 4-1: Crude Monte Carlo
+    print("Crude Monte Carlo:")
+    estimate, lower, upper = crude_monte_carlo_integral(n=n, confidence=confidence)
+    print(f"Point estimate: {estimate:.4f}")
+    print(f"95% confidence interval: [{lower:.4f}, {upper:.4f}]")
+
+    # Exercise 4-2: Antithetic Variates
+    print("\nAntithetic Variates:")
+    estimate, lower, upper = antithetic_integral(n=n, confidence=confidence)
+    print(f"Point estimate: {estimate:.4f}")
+    print(f"95% confidence interval : [{lower:.4f}, {upper:.4f}]")
+
+    # Exercise 4-3: Control Variates
+    print("\nControl Variates:")
+    estimate, lower, upper = control_variate_integral(n=n, confidence=confidence)
+    print(f"Point estimate: {estimate:.4f}")
+    print(f"95% confidence interval : [{lower:.4f}, {upper:.4f}]")
+
+    # Exercise 4-4: Stratified Sampling
+    print("\nStratified Sampling:")
+    estimate, lower, upper = stratified_sampling_integral(n=n, n_strata=10, confidence=confidence)
+    print(f"Point estimate: {estimate:.4f}")
+    print(f"95% confidence interval : [{lower:.4f}, {upper:.4f}]")
+
+    # TODO : Task 4-5 I need code from my laptop to do this part, I will add it later.
+
+    # Exercise 4-7: Comparison of Variance Reduction Techniques
+    a_values = [2, 4]
+    n_values = [100, 1_000, 10_000, 100_000]
+    sigma_values = [1]
+
+    confidence = 0.95
+
+    for a in a_values:
+        true_value = 1 - norm.cdf(a)
+
+        print()
+        print(f"a = {a}")
+        print("-" * 60)
+        print(f"True value: {true_value:.8f}")
+        print()
+
+        for n in n_values:
+            mc_estimate, mc_lower, mc_upper, mc_se = crude_mc_tail_probability(
+                a=a,
+                n=n,
+                seed=42,
+                confidence=confidence
+            )
+
+            print(f"Crude MC, n = {n}")
+            print(f"Estimate: {mc_estimate:.8f}")
+            print(f"95% CI:   [{mc_lower:.8f}, {mc_upper:.8f}]")
+            print(f"SE:       {mc_se:.8f}")
+            print()
+
+            for sigma in sigma_values:
+                is_estimate, is_lower, is_upper, is_se = importance_sampling_tail_probability(
+                    a=a,
+                    n=n,
+                    sigma=sigma,
+                    seed=42,
+                    confidence=confidence
+                )
+
+                print(f"Importance sampling, n = {n}, sigma = {sigma}")
+                print(f"Estimate: {is_estimate:.8f}")
+                print(f"95% CI:   [{is_lower:.8f}, {is_upper:.8f}]")
+                print(f"SE:       {is_se:.8f}")
+                print()
+
+        print("=" * 60)
+
+    # Exercise 4-8: Comparison of Variance Reduction Techniques
+    print("\nExercise 4-8: Comparison of Variance Reduction Techniques")
+    n = 10_000
+    confidence = 0.95
+
+    true_value = np.e - 1
+
+    # Find optimal lambda numerically
+    result = minimize_scalar(
+        second_moment,
+        bounds=(0.001, 10),
+        method="bounded"
+    )
+
+    optimal_lambda = result.x
+
+    print(f"Exact value: {true_value:.6f}")
+    print(f"Optimal lambda: {optimal_lambda:.4f}")
+    print()
+
+    lambda_values = [optimal_lambda - 0.2, optimal_lambda - 0.1, optimal_lambda, optimal_lambda + 0.1, optimal_lambda + 0.2]
+
+    for lambda_value in lambda_values:
+        estimate, lower, upper, se = importance_sampling_integral_exponential(
+            n=n,
+            lambda_value=lambda_value,
+            confidence=confidence
+        )
+
+        analytical_variance = second_moment(lambda_value) - true_value**2
+        true_value = np.e - 1
+
+        print(f"lambda = {lambda_value:.4f}")
+        print(f"Estimate: {estimate:.6f}")
+        print(f"Exact value: {true_value:.6f}")
+        print(f"Delta: {estimate - true_value:.6f}")
+        print(f"95% CI:   [{lower:.6f}, {upper:.6f}]")
+        print(f"SE:       {se:.6f}")
+        print(f"Analytical variance of one observation: {analytical_variance:.6f}")
+        print()
+
+    # Exercise 4-9: importance_sampling_integral_optimal_g
+    print("\nExercise 4-9: Importance Sampling with Optimal g")
+    estimate, lower, upper, se = importance_sampling_integral_optimal_g(
+        n=n,
+        confidence=confidence
+    )
+    true_value = np.e - 1
+    print(f"Estimate: {estimate:.6f}")
+    print(f"Exact value: {true_value:.6f}")
+    print(f"Delta: {estimate - true_value:.6f}")
+    print(f"95% CI:   [{lower:.6f}, {upper:.6f}]")
+    print(f"SE:       {se:.6f}")
+
+
+
+if __name__ == "__main__":
+    main()
+
+import numpy as np
+from scipy.stats import norm, t
+from scipy.optimize import minimize_scalar
+from scipy.stats import chisquare
+import matplotlib.pyplot as plt
+import math
+from mpl_toolkits.mplot3d import Axes3D
+np.random.seed(42) 
+
+################################ --------------- Exercise 5-1 --------------- ################################
+
+'''
+The number of busy lines in a trunk group (Erlang system) follows a truncated Poisson
+distribution
+    P(i) = c * (A^i / i!), i = 0, 1, ..., m
+# Generate samples from this distribution using the Metropolis-Hastings algorithm.
+'''
+
+def truncated_poisson_pmf(i, A, m):
+    c = 1 / sum((A**k) / math.factorial(k) for k in range(m + 1))
+    return c * (A**i / math.factorial(i))
+
+def metropolis_hastings_truncated_poisson(A, m, num_samples):
+    """Generate samples from a truncated Poisson target distribution using Metropolis-Hastings.
+
+    Suppose we wish to sample from a target density f(x) = c g(x), where the normalizing constant
+    c is unknown. Starting from the current state x:
+      1. Propose a candidate state y.
+      2. Decide whether to accept or reject the proposal.
+      3. If accepted, move to y.
+      4. Otherwise remain at x.
+
+    Repeating this procedure generates a Markov chain whose stationary distribution is the target.
+    """
+    samples = []
+    current_state = 0  # Start at state 0
+
+    for _ in range(num_samples):
+        # 1. Propose a candidate state y
+        proposed_state = np.random.randint(0, m + 1)
+
+        # 2. Decide whether to accept or reject the proposal
+        current_pmf = truncated_poisson_pmf(current_state, A, m)
+        proposed_pmf = truncated_poisson_pmf(proposed_state, A, m)
+        acceptance_prob = min(1, proposed_pmf / current_pmf)
+
+        # 3. If accepted, move to y; otherwise remain at x
+        if np.random.rand() < acceptance_prob:
+            current_state = proposed_state
+
+        samples.append(current_state)
+
+    return samples
+
+def chi_squared_test(samples, expected_freq):
+    observed_freq = np.bincount(samples, minlength=len(expected_freq))
+    chi2_statistic, p_value = chisquare(observed_freq, f_exp=expected_freq)
+    return chi2_statistic, p_value
+
+def plot_running_mean(samples):
+    samples = np.array(samples)
+
+    running_mean = np.cumsum(samples) / np.arange(1, len(samples) + 1)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(running_mean)
+    plt.xlabel("Iteration")
+    plt.ylabel("Running mean")
+    plt.title("Running mean of Metropolis-Hastings samples")
+    plt.grid(True)
+    plt.show()
+
+def truncated_poisson_mean(A, m):
+    probs = np.array([
+        truncated_poisson_pmf(i, A, m)
+        for i in range(m + 1)
+    ])
+
+    states = np.arange(m + 1)
+
+    return np.sum(states * probs)
+
+def plot_running_mean(samples, A, m, filename='Assets/51_running_mean.png'):
+    samples = np.array(samples)
+
+    running_mean = np.cumsum(samples) / np.arange(1, len(samples) + 1)
+    theoretical_mean = truncated_poisson_mean(A, m)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(running_mean, label="Running mean")
+    plt.axhline(theoretical_mean, linestyle="--", label="Theoretical mean")
+    plt.xlabel("Iteration")
+    plt.ylabel("Mean")
+    plt.title("Running mean compared with theoretical mean")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename)
+
+def plot_expected_vs_observed(samples, expected_freq, filename='Assets/51_expected_vs_observed.png'):
+    # Sample are a list of 8000 integers between 0 and 5
+    # expected_freq is a list of 6 floats representing the expected frequencies for each state (0 to 5)
+    observed_freq = np.bincount(samples, minlength=len(expected_freq))
+    states = np.arange(len(expected_freq))
+    plt.figure(figsize=(10, 5))
+    plt.bar(states - 0.2, observed_freq, width=0.4, label="Observed", alpha=0.7)
+    plt.bar(states + 0.2, expected_freq, width=0.4, label="Expected", alpha=0.7)
+    plt.xlabel("State")
+    plt.ylabel("Frequency")
+    plt.title("Observed vs Expected Frequencies")
+    plt.xticks(states)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename)
+
+
+################################ --------------- Exercise 5-2 --------------- ################################
+
+def valid_states_2d(m):
+    return [
+        (i, j)
+        for i in range(m + 1)
+        for j in range(m + 1 - i)
+    ]
+
+
+def unnormalized_pmf_2d(i, j, A_1, A_2):
+    return (A_1**i / math.factorial(i)) * (A_2**j / math.factorial(j))
+
+
+def truncated_poisson_pmf_2d(i, j, A_1, A_2, m):
+    normalizing_sum = sum(
+        unnormalized_pmf_2d(k, l, A_1, A_2)
+        for k, l in valid_states_2d(m)
+    )
+
+    c = 1 / normalizing_sum
+
+    return c * unnormalized_pmf_2d(i, j, A_1, A_2)
+
+
+# ---------------- Method (a): Direct Metropolis-Hastings ----------------
+
+def metropolis_hastings_2d_direct(A_1, A_2, m, num_samples, start_state=(0, 0)):
+    samples = []
+    valid_states = valid_states_2d(m)
+
+    current_state = start_state
+
+    for _ in range(num_samples):
+        proposed_state = valid_states[np.random.randint(len(valid_states))]
+
+        current_weight = unnormalized_pmf_2d(
+            current_state[0], current_state[1], A_1, A_2
+        )
+
+        proposed_weight = unnormalized_pmf_2d(
+            proposed_state[0], proposed_state[1], A_1, A_2
+        )
+
+        acceptance_prob = min(1, proposed_weight / current_weight)
+
+        if np.random.rand() < acceptance_prob:
+            current_state = proposed_state
+
+        samples.append(current_state)
+
+    return np.array(samples)
+
+
+# ---------------- Method (b): Coordinate-wise Metropolis-Hastings ----------------
+
+def metropolis_hastings_2d_coordinatewise(A_1, A_2, m, num_samples, start_state=(0, 0)):
+    samples = []
+
+    current_i, current_j = start_state
+
+    for _ in range(num_samples):
+        # Update i while keeping j fixed
+        proposed_i = np.random.randint(0, m - current_j + 1)
+
+        current_weight = unnormalized_pmf_2d(
+            current_i, current_j, A_1, A_2
+        )
+
+        proposed_weight = unnormalized_pmf_2d(
+            proposed_i, current_j, A_1, A_2
+        )
+
+        acceptance_prob = min(1, proposed_weight / current_weight)
+
+        if np.random.rand() < acceptance_prob:
+            current_i = proposed_i
+
+        # Update j while keeping i fixed
+        proposed_j = np.random.randint(0, m - current_i + 1)
+
+        current_weight = unnormalized_pmf_2d(
+            current_i, current_j, A_1, A_2
+        )
+
+        proposed_weight = unnormalized_pmf_2d(
+            current_i, proposed_j, A_1, A_2
+        )
+
+        acceptance_prob = min(1, proposed_weight / current_weight)
+
+        if np.random.rand() < acceptance_prob:
+            current_j = proposed_j
+
+        samples.append((current_i, current_j))
+
+    return np.array(samples)
+
+
+# ---------------- Method (c): Gibbs sampling ----------------
+
+def sample_from_discrete_probs(values, probs):
+    probs = np.array(probs, dtype=float)
+    probs = probs / np.sum(probs)
+
+    return np.random.choice(values, p=probs)
+
+
+def gibbs_sampling_2d(A_1, A_2, m, num_samples, start_state=(0, 0)):
+    """
+    Gibbs sampler using the analytical conditional distributions:
+
+        P(i | j) proportional to A_1^i / i!,  i = 0, ..., m-j
+
+        P(j | i) proportional to A_2^j / j!,  j = 0, ..., m-i
+    """
+
+    samples = []
+
+    current_i, current_j = start_state
+
+    for _ in range(num_samples):
+        # Sample i from P(i | j)
+        possible_i_values = np.arange(m - current_j + 1)
+
+        probs_i_given_j = np.array([
+            A_1**i / math.factorial(i)
+            for i in possible_i_values
+        ])
+
+        current_i = sample_from_discrete_probs(
+            possible_i_values,
+            probs_i_given_j
+        )
+
+        # Sample j from P(j | i)
+        possible_j_values = np.arange(m - current_i + 1)
+
+        probs_j_given_i = np.array([
+            A_2**j / math.factorial(j)
+            for j in possible_j_values
+        ])
+
+        current_j = sample_from_discrete_probs(
+            possible_j_values,
+            probs_j_given_i
+        )
+
+        samples.append((current_i, current_j))
+
+    return np.array(samples)
+
+def chi_squared_test_2d(samples, A_1, A_2, m):
+    valid_states = valid_states_2d(m)
+
+    observed_freq = np.array([
+        np.sum((samples[:, 0] == i) & (samples[:, 1] == j))
+        for i, j in valid_states
+    ])
+
+    expected_freq = np.array([
+        truncated_poisson_pmf_2d(i, j, A_1, A_2, m) * len(samples)
+        for i, j in valid_states
+    ])
+
+    chi2_statistic, p_value = chisquare(
+        f_obs=observed_freq,
+        f_exp=expected_freq
+    )
+
+    return chi2_statistic, p_value, observed_freq, expected_freq
+
+def plot_3d_distribution(samples, A_1, A_2, m, filename="Assets/52_3d_distribution.png"):
+    valid_states = valid_states_2d(m)
+
+    empirical_probs = []
+    theoretical_probs = []
+
+    for i, j in valid_states:
+        observed_count = np.sum((samples[:, 0] == i) & (samples[:, 1] == j))
+        empirical_probs.append(observed_count / len(samples))
+
+        theoretical_probs.append(
+            truncated_poisson_pmf_2d(i, j, A_1, A_2, m)
+        )
+
+    empirical_probs = np.array(empirical_probs)
+    theoretical_probs = np.array(theoretical_probs)
+
+    x = np.array([state[0] for state in valid_states])
+    y = np.array([state[1] for state in valid_states])
+
+    fig = plt.figure(figsize=(12, 6))
+
+    ax = fig.add_subplot(111, projection="3d")
+
+    width = 0.3
+    depth = 0.3
+
+    # Empirical bars
+    ax.bar3d(
+        x - 0.15,
+        y - 0.15,
+        np.zeros_like(empirical_probs),
+        width,
+        depth,
+        empirical_probs,
+        alpha=0.7,
+        label="Empirical"
+    )
+
+    # Theoretical bars
+    ax.bar3d(
+        x + 0.15,
+        y + 0.15,
+        np.zeros_like(theoretical_probs),
+        width,
+        depth,
+        theoretical_probs,
+        alpha=0.7,
+        label="Theoretical"
+    )
+
+    ax.set_xlabel("i: Call type 1")
+    ax.set_ylabel("j: Call type 2")
+    ax.set_zlabel("Probability")
+    ax.set_title("Empirical vs theoretical 2D truncated Poisson distribution")
+
+    plt.savefig(filename)
+    plt.close()
+
+################################ --------------- Exercise 5-3 --------------- ################################
+def bivariate_lognormal_pdf(x, y, rho=0.5):
+    """
+    Joint density of (X, Y), where (log(X), log(Y)) follows
+    a bivariate normal distribution with mean zero, variance one,
+    and correlation rho.
+
+    Valid only for x > 0 and y > 0.
+    """
+
+    if x <= 0 or y <= 0:
+        return 0
+
+    coefficient = 1 / (2 * np.pi * x * y * np.sqrt(1 - rho**2))
+
+    exponent = -(
+        np.log(x)**2
+        - 2 * rho * np.log(x) * np.log(y)
+        + np.log(y)**2
+    ) / (2 * (1 - rho**2))
+
+    return coefficient * np.exp(exponent)
+
+def generate_prior_sample(rho=0.5):
+    mean = np.array([0, 0])
+
+    covariance = np.array([
+        [1, rho],
+        [rho, 1]
+    ])
+
+    xi, gamma = np.random.multivariate_normal(mean, covariance)
+
+    theta = np.exp(xi)
+    psi = np.exp(gamma)
+
+    return xi, gamma, theta, psi
+
+def simulate_observations(theta, psi, n=10):
+    return np.random.normal(
+        loc=theta,
+        scale=np.sqrt(psi),
+        size=n
+    )
+
+def plot_x_values(samples, filename="Assets/53_x_values.png"):
+    samples = np.array(samples)
+
+    plt.figure(figsize=(10, 5))
+
+    plt.plot(
+        np.arange(1, len(samples) + 1),
+        samples,
+        marker="o",
+        linestyle="-",
+        label="Simulated observations"
+    )
+
+    plt.xlabel("Observation number")
+    plt.ylabel("X value")
+    plt.title("Simulated observations $X_1, \\ldots, X_n$")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(filename)
+    plt.close()
+
+
+def log_posterior_xi_gamma(xi, gamma, observations, rho=0.5):
+    """
+    Log posterior of (xi, gamma), where:
+        theta = exp(xi)
+        psi   = exp(gamma)
+
+    We sample in log-space to ensure theta > 0 and psi > 0.
+    Constants are omitted because they cancel in the MH ratio.
+    """
+
+    observations = np.array(observations)
+    n = len(observations)
+
+    theta = np.exp(xi)
+    psi = np.exp(gamma)
+
+    # Log-likelihood: Xi ~ N(theta, psi)
+    sum_squared_errors = np.sum((observations - theta) ** 2)
+
+    log_likelihood = (
+        -(n / 2) * np.log(psi)
+        - sum_squared_errors / (2 * psi)
+    )
+
+    # Prior for (xi, gamma): bivariate normal with correlation rho
+    log_prior = -(
+        xi**2
+        - 2 * rho * xi * gamma
+        + gamma**2
+    ) / (2 * (1 - rho**2))
+
+    return log_likelihood + log_prior
+
+def metropolis_hastings_posterior(
+    observations,
+    num_samples=10000,
+    rho=0.5,
+    proposal_std=0.25,
+    start_xi=0,
+    start_gamma=0
+):
+    """
+    Generate posterior samples of (theta, psi) using Metropolis-Hastings.
+
+    The chain is run in log-space:
+        xi = log(theta)
+        gamma = log(psi)
+    """
+
+    samples = []
+
+    current_xi = start_xi
+    current_gamma = start_gamma
+
+    current_log_posterior = log_posterior_xi_gamma(
+        current_xi,
+        current_gamma,
+        observations,
+        rho
+    )
+
+    accepted = 0
+
+    for _ in range(num_samples):
+        # Random-walk proposal in log-space
+        proposed_xi = np.random.normal(current_xi, proposal_std)
+        proposed_gamma = np.random.normal(current_gamma, proposal_std)
+
+        proposed_log_posterior = log_posterior_xi_gamma(
+            proposed_xi,
+            proposed_gamma,
+            observations,
+            rho
+        )
+
+        # MH acceptance probability on log-scale
+        log_acceptance_ratio = proposed_log_posterior - current_log_posterior
+
+        if np.log(np.random.rand()) < log_acceptance_ratio:
+            current_xi = proposed_xi
+            current_gamma = proposed_gamma
+            current_log_posterior = proposed_log_posterior
+            accepted += 1
+
+        theta = np.exp(current_xi)
+        psi = np.exp(current_gamma)
+
+        samples.append((theta, psi))
+
+    acceptance_rate = accepted / num_samples
+
+    return np.array(samples), acceptance_rate
+
+def plot_posterior_traces(samples, burn_in=2000, filename="Assets/53_posterior_traces.png"):
+    samples = np.array(samples)
+
+    theta_samples = samples[:, 0]
+    psi_samples = samples[:, 1]
+
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(theta_samples, label=r"$\Theta$")
+    plt.plot(psi_samples, label=r"$\Psi$")
+
+    plt.axvline(burn_in, linestyle="--", label="Burn-in")
+
+    plt.xlabel("Iteration")
+    plt.ylabel("Parameter value")
+    plt.title("Posterior trace plots for $\\Theta$ and $\\Psi$")
+    plt.legend()
+    plt.grid(True)
+
+    plt.savefig(filename)
+    plt.close()
+
+def plot_posterior_histograms(samples, filename="Assets/53_posterior_histograms.png"):
+    samples = np.array(samples)
+
+    theta_samples = samples[:, 0]
+    psi_samples = samples[:, 1]
+
+    plt.figure(figsize=(10, 5))
+
+    plt.hist(theta_samples, bins=40, alpha=0.6, density=True, label=r"$\Theta$")
+    plt.hist(psi_samples, bins=40, alpha=0.6, density=True, label=r"$\Psi$")
+
+    plt.xlabel("Parameter value")
+    plt.ylabel("Density")
+    plt.title("Posterior samples of $\\Theta$ and $\\Psi$")
+    plt.legend()
+    plt.grid(True)
+
+    plt.savefig(filename)
+    plt.close()
+
+def run_posterior_experiment(
+    theta,
+    psi,
+    n,
+    rho=0.5,
+    num_samples=10000,
+    burn_in=2000,
+    proposal_std=0.25
+):
+    print(f"\n##### ----- Posterior sampling with n = {n} ----- #####")
+
+    # Generate observations using the SAME theta and psi from part (a)
+    X = simulate_observations(theta, psi, n)
+
+    posterior_samples, acceptance_rate = metropolis_hastings_posterior(
+        observations=X,
+        num_samples=num_samples,
+        rho=rho,
+        proposal_std=proposal_std
+    )
+
+    posterior_samples_after_burn_in = posterior_samples[burn_in:]
+
+    theta_samples = posterior_samples_after_burn_in[:, 0]
+    psi_samples = posterior_samples_after_burn_in[:, 1]
+
+    print(f"True theta from prior: {theta:.4f}")
+    print(f"True psi from prior:   {psi:.4f}")
+
+    print(f"Sample mean of X:      {np.mean(X):.4f}")
+    print(f"Sample variance of X:  {np.var(X, ddof=1):.4f}")
+
+    print(f"Acceptance rate:       {acceptance_rate:.4f}")
+
+    print("\nPosterior mean estimates:")
+    print(f"E[Theta | X] ≈ {np.mean(theta_samples):.4f}")
+    print(f"E[Psi | X] ≈   {np.mean(psi_samples):.4f}")
+
+    print("\nPosterior median estimates:")
+    print(f"Median Theta ≈ {np.median(theta_samples):.4f}")
+    print(f"Median Psi ≈   {np.median(psi_samples):.4f}")
+
+    print("\n95% posterior intervals:")
+    print(f"Theta: [{np.percentile(theta_samples, 2.5):.4f}, {np.percentile(theta_samples, 97.5):.4f}]")
+    print(f"Psi:   [{np.percentile(psi_samples, 2.5):.4f}, {np.percentile(psi_samples, 97.5):.4f}]")
+
+    plot_posterior_traces(
+        samples=posterior_samples,
+        burn_in=burn_in,
+        filename=f"Assets/53d_traces_n{n}.png"
+    )
+
+    plot_posterior_histograms(
+        samples=posterior_samples_after_burn_in,
+        filename=f"Assets/53d_histogram_n{n}.png"
+    )
+
+    return X, posterior_samples_after_burn_in, acceptance_rate
+
+################################ --------------- Main --------------- ################################
+def main():
+    ################ ----- Exercise 5-1 ----- ################
+    print("Exercise 5-1: Metropolis-Hastings for truncated Poisson distribution")
+    A = 3  # Average number of busy lines
+    m = 5  # Maximum number of lines
+    burn_in = 2000  # Number of initial samples to discard
+    num_samples = 10000
+    thin = 10  # chi-sqared test requires independent samples, so we thin the chain by taking every 10th sample after burn-in
+    samples = metropolis_hastings_truncated_poisson(
+        A=A,
+        m=m,
+        num_samples=num_samples
+    )
+
+    plot_running_mean(samples, A, m)
+
+    # Discard burn-in
+    samples = np.array(samples)
+    samples_after_burn_in = samples[burn_in::thin]
+
+    expected_freq = np.array([
+        truncated_poisson_pmf(i, A, m) * len(samples_after_burn_in)
+        for i in range(m + 1)
+    ])
+    print("\nExpected frequencies:",)
+    print(samples_after_burn_in[:10], samples_after_burn_in.shape)
+    print(expected_freq[:10], expected_freq.shape)
+
+
+    plot_expected_vs_observed(samples_after_burn_in, expected_freq)
+
+    chi2_statistic, p_value = chi_squared_test(
+        samples_after_burn_in,
+        expected_freq
+    )
+
+    print(f"Chi-squared statistic: {chi2_statistic:.4f}, p-value: {p_value:.4f}")
+
+    if p_value > 0.05:
+        print("The samples follow the expected distribution (fail to reject H0).")
+    else:
+        print("The samples do not follow the expected distribution (reject H0).")
+
+    ################ ----- Exercise 5-2 ----- ################
+    print("\n##### ----- Exercise 5-2: Truncated Poisson distribution ----- #####")
+    A_1 = 4
+    A_2 = 4
+    m = 10
+    num_samples = 10000
+    burn_in = 2000
+    thin = 5
+
+    methods = {
+        "Direct Metropolis-Hastings": metropolis_hastings_2d_direct,
+        "Coordinate-wise Metropolis-Hastings": metropolis_hastings_2d_coordinatewise,
+        "Gibbs sampling": gibbs_sampling_2d
+    }
+
+    print("\n##### ----- Exercise 5-2: Comparison of 2D sampling methods ----- #####")
+
+    for method_name, sampler in methods.items():
+        samples = sampler(
+            A_1=A_1,
+            A_2=A_2,
+            m=m,
+            num_samples=num_samples
+        )
+
+        samples_after_burn_in = samples[burn_in::thin]
+
+        chi2_statistic, p_value, observed_freq, expected_freq = chi_squared_test_2d(
+            samples=samples_after_burn_in,
+            A_1=A_1,
+            A_2=A_2,
+            m=m
+        )
+
+        print(f"\nMethod: {method_name}")
+        print(f"Number of samples after burn-in and thinning: {len(samples_after_burn_in)}")
+        print(f"Chi-squared statistic: {chi2_statistic:.4f}")
+        print(f"p-value: {p_value:.4f}")
+
+        if p_value > 0.05:
+            print("Result: Fail to reject H0. The samples are consistent with the target distribution.")
+        else:
+            print("Result: Reject H0. The samples differ significantly from the target distribution.")
+
+        plot_3d_distribution(
+            samples=samples_after_burn_in,
+            A_1=A_1,
+            A_2=A_2,
+            m=m,
+            filename=f"Assets/52_{method_name}_3d_plot"
+        )
+
+    ################ ----- Exercise 5-3 ----- ################
+    print("\n##### ----- Exercise 5-3-b: Bayesia model")
+    print("Test: ", bivariate_lognormal_pdf(2,2, rho = 0.5))
+    '''
+        We know that Xi and Gamma is normal distributed and have correlation Phi  
+            Xi ~ N(0,1)
+            Gamma ~ N(0,1)
+            corr(Xi, Gamma) = Phi
+            st. Cov(Xi, Gamma) = [[1, Phi], [Phi, 1]]
+
+        Then because, we have
+            (Xi, Gamma) = (log(Theta), log(Psi)) =>
+            (Theta, psi) = e^Xi, e^Gamma
+    '''
+    rho = 0.5
+    n = 10
+
+    xi, gamma, theta, psi = generate_prior_sample(rho)
+
+    X = simulate_observations(theta, psi, n)
+
+    print("\nGenerate N sample")
+    print(f"xi = {xi:.4f}")
+    print(f"gamma = {gamma:.4f}")
+    print(f"theta = {theta:.4f}")
+    print(f"psi = {psi:.4f}")
+    print(X)
+
+    plot_x_values(X, "Assets/53_x_values.png")    
+
+    print("\n##### ----- Exercise 5-3-c: Bayesia model")
+    # Look at notes
+
+    print("\n##### ----- Exercise 5-3-d: Bayesia model")
+    rho = 0.5
+    num_samples = 10000
+    burn_in = 2000
+
+    posterior_samples, acceptance_rate = metropolis_hastings_posterior(
+        observations=X,
+        num_samples=num_samples,
+        rho=rho,
+        proposal_std=0.25
+    )
+
+    posterior_samples_after_burn_in = posterior_samples[burn_in:]
+
+    theta_samples = posterior_samples_after_burn_in[:, 0]
+    psi_samples = posterior_samples_after_burn_in[:, 1]
+
+    print(f"Acceptance rate: {acceptance_rate:.4f}")
+
+    print("\nPosterior mean estimates:")
+    print(f"E[Theta | X] ≈ {np.mean(theta_samples):.4f}")
+    print(f"E[Psi | X] ≈ {np.mean(psi_samples):.4f}")
+
+    print("\nPosterior median estimates:")
+    print(f"Median Theta ≈ {np.median(theta_samples):.4f}")
+    print(f"Median Psi ≈ {np.median(psi_samples):.4f}")
+    
+    plot_posterior_traces(
+        samples=posterior_samples,
+        burn_in=burn_in,
+        filename="Assets/53d_traces"
+    )
+    plot_posterior_histograms(
+        samples=posterior_samples_after_burn_in,
+        filename="Assets/53d_histogram"
+    )
+
+    print("\n##### ----- Exercise 5-3-e: Bayesia model")
+
+    rho = 0.5
+    num_samples = 10000
+    burn_in = 2000
+
+    # Use different proposal standard deviations.
+    # For larger n, the posterior becomes more concentrated, so smaller steps are usually better.
+    proposal_stds = {
+        10: 0.25,
+        100: 0.10,
+        1000: 0.03
+    }
+
+    posterior_results = {}
+
+    for n_value in [10, 100, 1000]:
+        X_n, posterior_samples_n, acceptance_rate_n = run_posterior_experiment(
+            theta=theta,
+            psi=psi,
+            n=n_value,
+            rho=rho,
+            num_samples=num_samples,
+            burn_in=burn_in,
+            proposal_std=proposal_stds[n_value]
+        )
+
+        posterior_results[n_value] = {
+            "X": X_n,
+            "posterior_samples": posterior_samples_n,
+            "acceptance_rate": acceptance_rate_n
+        }
+
+
+
+if __name__ == "__main__":
+    main()
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+################################ ---------- Exercise 7 - Part 1 ---------- ################################
+# Simulated annealing for TSP using Euclidean distance
+
+def euclidean_dist(a, b):
+    """
+    Compute Euclidean distance between two points.
+    """
+    return np.sqrt(np.sum((a - b) ** 2))
+
+
+def route_length(route, points):
+    """
+    Compute total length of a closed TSP route.
+
+    route: array of city indices
+    points: array of shape (n, 2)
+    """
+    total_distance = 0.0
+    n = len(route)
+
+    for i in range(n):
+        current_city = route[i]
+        next_city = route[(i + 1) % n]  # return to start
+        total_distance += euclidean_dist(points[current_city], points[next_city])
+
+    return total_distance
+
+
+def propose_swap(route):
+    """
+    Generate a new candidate route by swapping two randomly selected cities.
+    """
+    new_route = route.copy()
+
+    i, j = np.random.choice(len(route), size=2, replace=False)
+
+    new_route[i], new_route[j] = new_route[j], new_route[i]
+
+    return new_route
+
+
+def temperature(k, scheme="sqrt"):
+    """
+    Cooling schemes suggested in the slides.
+
+    scheme="sqrt": T_k = 1 / sqrt(1 + k)
+    scheme="log":  T_k = 1 / log(2 + k)
+    """
+    if scheme == "sqrt":
+        return 1 / np.sqrt(1 + k)
+
+    elif scheme == "log":
+        return 1 / np.log(2 + k)
+
+    else:
+        raise ValueError("scheme must be either 'sqrt' or 'log'")
+
+
+def simulated_annealing_tsp(
+    points,
+    n_iterations=50_000,
+    cooling_scheme="sqrt",
+    seed=42
+):
+    np.random.seed(seed)
+
+    n = len(points)
+
+    # Initial route: random permutation of cities
+    current_route = np.random.permutation(n)
+    current_distance = route_length(current_route, points)
+
+    best_route = current_route.copy()
+    best_distance = current_distance
+
+    history = []
+
+    for k in range(n_iterations):
+        T = temperature(k, scheme=cooling_scheme)
+
+        candidate_route = propose_swap(current_route)
+        candidate_distance = route_length(candidate_route, points)
+
+        difference = candidate_distance - current_distance
+
+        # Accept if better, otherwise accept with probability exp(-difference / T)
+        if difference <= 0:
+            accept = True
+        else:
+            acceptance_probability = np.exp(-difference / T)
+            accept = np.random.uniform() < acceptance_probability
+
+        if accept:
+            current_route = candidate_route
+            current_distance = candidate_distance
+
+            if current_distance < best_distance:
+                best_route = current_route.copy()
+                best_distance = current_distance
+
+        history.append(best_distance)
+
+    return best_route, best_distance, history
+
+
+def plot_route(points, route, title="Simulated annealing TSP route", savepath="Assets/71_route"):
+    """
+    Plot the resulting closed route in the plane.
+    """
+    ordered_points = points[route]
+
+    # Add first point again to close the route
+    closed_route = np.vstack([ordered_points, ordered_points[0]])
+
+    plt.figure(figsize=(7, 7))
+    plt.plot(closed_route[:, 0], closed_route[:, 1], marker="o")
+
+    for city_idx in route:
+        x, y = points[city_idx]
+        plt.text(x, y, str(city_idx), fontsize=10)
+
+    plt.title(title)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axis("equal")
+    plt.grid(True)
+    plt.savefig(savepath)
+    plt.close()
+
+
+def plot_history(history, title="History", savepath="Assets/71_history"):
+    """
+    Plot best route length over iterations.
+    """
+    plt.figure(figsize=(8, 5))
+    plt.plot(history)
+    plt.title(title)
+    plt.xlabel("Iteration")
+    plt.ylabel("Best route length")
+    plt.grid(True)
+    plt.savefig(savepath)
+    plt.close()
+
+
+def generate_circle_points(n, radius=1, seed=42):
+    """
+    Generate n points placed on a circle.
+
+    This is useful as a sanity check because the optimal route should follow
+    the circle around the outside.
+    """
+    np.random.seed(seed)
+
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
+
+    points = np.column_stack([
+        radius * np.cos(angles),
+        radius * np.sin(angles)
+    ])
+
+    return points
+
+
+def generate_random_points(n, seed=42):
+    """
+    Generate n random points in the unit square.
+    """
+    np.random.seed(seed)
+    return np.random.uniform(0, 1, size=(n, 2))
+
+
+################################ ---------- Exercise 7 - Part 2 ---------- ################################
+# Simulated annealing for TSP using a general cost matrix
+
+def load_cost_matrix(path="./cost.csv"):
+    """
+    Load a cost matrix from CSV.
+
+    The file from Learn may have shape (19, 20), where the first column
+    contains row labels. This function removes that first column if needed.
+    """
+    df = pd.read_csv(path, header=None)
+
+    cost_matrix = df.to_numpy(dtype=float)
+
+    if cost_matrix.shape[0] != cost_matrix.shape[1]:
+        raise ValueError(f"Cost matrix must be square, but got shape {cost_matrix.shape}")
+
+    return cost_matrix
+
+
+def route_cost(route, cost_matrix):
+    """
+    Compute total cost of a closed TSP route using a general cost matrix.
+
+    route: array of city indices
+    cost_matrix[i, j]: cost of travelling from city i to city j
+    """
+    total_cost = 0.0
+    n = len(route)
+
+    for i in range(n):
+        current_city = route[i]
+        next_city = route[(i + 1) % n]  # return to first city
+        total_cost += cost_matrix[current_city, next_city]
+
+    return total_cost
+
+
+def propose_reverse_segment(route):
+    """
+    Generate a new candidate route by reversing a randomly chosen segment.
+    This is often a good proposal mechanism for TSP.
+    """
+    new_route = route.copy()
+
+    i, j = np.random.choice(len(route), size=2, replace=False)
+
+    if i > j:
+        i, j = j, i
+
+    new_route[i:j + 1] = new_route[i:j + 1][::-1]
+
+    return new_route
+
+
+def simulated_annealing_tsp_cost_matrix(
+    cost_matrix,
+    n_iterations=100_000,
+    cooling_scheme="sqrt",
+    proposal="swap",
+    seed=42
+):
+    np.random.seed(seed)
+
+    n = cost_matrix.shape[0]
+
+    # Initial route
+    current_route = np.array(range(n))
+    current_cost = route_cost(current_route, cost_matrix)
+
+    best_route = current_route.copy()
+    best_cost = current_cost
+
+    history = []
+
+    for k in range(n_iterations):
+        T = temperature(k, scheme=cooling_scheme)
+
+        if proposal == "swap":
+            candidate_route = propose_swap(current_route)
+
+        elif proposal == "reverse":
+            candidate_route = propose_reverse_segment(current_route)
+
+        else:
+            raise ValueError("proposal must be either 'swap' or 'reverse'")
+
+        candidate_cost = route_cost(candidate_route, cost_matrix)
+
+        difference = candidate_cost - current_cost
+
+        # Accept all improvements
+        if difference <= 0:
+            accept = True
+
+        else:
+            # Accept worse solution with probability exp(-difference / T)
+            acceptance_probability = np.exp(-difference / T)
+            accept = np.random.uniform() < acceptance_probability
+
+        if accept:
+            current_route = candidate_route
+            current_cost = candidate_cost
+
+            if current_cost < best_cost:
+                best_route = current_route.copy()
+                best_cost = current_cost
+
+        history.append(best_cost)
+
+    return best_route, best_cost, history
+
+
+def run_experiments(cost_matrix, n_iterations):
+    """
+    Compare different cooling schemes and proposal mechanisms.
+
+    Each experiment is repeated 100 times, and the average best cost is returned.
+    """
+    experiments = [
+        ("sqrt", "swap"),
+        ("log", "swap"),
+        ("sqrt", "reverse"),
+        ("log", "reverse")
+    ]
+
+    results = []
+    n_repetitions = 1
+
+    for cooling_scheme, proposal in experiments:
+        best_costs = []
+        best_routes = []
+        histories = []
+
+        for i in range(n_repetitions):
+            best_route, best_cost, history = simulated_annealing_tsp_cost_matrix(
+                cost_matrix=cost_matrix,
+                n_iterations=n_iterations,
+                cooling_scheme=cooling_scheme,
+                proposal=proposal,
+                seed=42
+            )
+
+            best_costs.append(best_cost)
+            best_routes.append(best_route)
+            histories.append(history)
+
+        avg_best_cost = np.mean(best_costs)
+
+        # Route corresponding to the best run among the 100 repetitions
+        best_run_index = np.argmin(best_costs)
+
+        results.append({
+            "Cooling scheme": cooling_scheme,
+            "Proposal": proposal,
+            "Best cost": avg_best_cost,
+            "Best route": best_routes[best_run_index],
+            "History": histories[best_run_index]
+        })
+
+    return results
+
+
+###########################################################################################################
+################################ ----------------- Main ------------------ ################################
+###########################################################################################################
+
+def main():
+    ################################ ---------- Exercise 7 - Part 1 ---------- ################################
+
+    n = 20
+
+    # Use this for circle points:
+    points = generate_circle_points(n)
+
+    # Use this for random points:
+    np.random.seed(42)
+    # points = np.random.rand(n, 2)
+
+    best_route, best_distance, history = simulated_annealing_tsp(
+        points=points,
+        n_iterations=10_000,
+        cooling_scheme="sqrt",
+        seed=42
+    )
+
+    print("Exercise 7 Part 1: Simulated annealing for TSP")
+    print("------------------------------------------------")
+    print("Best route:")
+    print(best_route)
+    print(f"Best route length: {best_distance:.4f}")
+
+    plot_route(
+        points,
+        best_route,
+        title=f"TSP route using simulated annealing, distance = {best_distance:.4f}",
+        savepath="Assets/71_route"
+    )
+
+    plot_history(
+        history,
+        title="Best route length over iterations",
+        savepath="Assets/71_history"
+    )
+
+    ################################ ---------- Exercise 7 - Part 2 ---------- ################################
+
+    cost_matrix = load_cost_matrix("./cost.csv")
+
+    print()
+    print("Exercise 7 Part 2: Simulated annealing with general travel costs")
+    print("----------------------------------------------------------------")
+    print(f"Cost matrix shape: {cost_matrix.shape}")
+
+    results = run_experiments(cost_matrix, n_iterations=10_000)
+
+    for result in results:
+        print()
+        print(f"Cooling scheme: {result['Cooling scheme']}")
+        print(f"Proposal: {result['Proposal']}")
+        print(f"Average best cost over 100 runs: {result['Best cost']:.4f}")
+        # print(f"Best route cost from best run: {route_cost(result['Best route'], cost_matrix):.4f}")
+        # print("Best route:")
+        # print(result["Best route"] + 1)  # +1 so cities are printed as 1, 2, ..., n
+
+    # Plot the best run
+    best_result = min(results, key=lambda x: x["Best cost"])
+
+    plot_history(
+        best_result["History"],
+        title=(
+            f"Best cost over iterations "
+            f"({best_result['Cooling scheme']}, {best_result['Proposal']})"
+        ),
+        savepath="Assets/72_history"
+    )
+
+    plot_route(
+        points,
+        route=best_result["Best route"],
+        title=f"TSP route using simulated annealing, average cost = {best_result['Best cost']:.4f}",
+        savepath="Assets/72_route"
+    )
+
+    print()
+    print("Best overall result")
+    print("-------------------")
+    print(f"Cooling scheme: {best_result['Cooling scheme']}")
+    print(f"Proposal: {best_result['Proposal']}")
+    print(f"Average best cost over 100 runs: {best_result['Best cost']:.4f}")
+    print("Best route:")
+    print(best_result["Best route"] + 1)
+
+
+if __name__ == "__main__":
+    main()
+
+import numpy as np
+
+################################ ---------- Exercise 8 - Part 1 ---------- ################################
+def run_bootstraping(data, a, b, k, seed):
+
+    x_bar = np.mean(data)
+    n = len(data)
+    rng = np.random.default_rng(seed)
+
+    bootstrap_differences = []
+
+    for _ in range(k):
+        bootstrap_sample = rng.choice(data, size=n, replace=True)
+        bootstrap_mean = np.mean(bootstrap_sample)
+        bootstrap_differences.append(bootstrap_mean - x_bar)
+
+    bootstrap_differences = np.array(bootstrap_differences)
+
+    p_hat = np.mean((a < bootstrap_differences) & (bootstrap_differences < b))
+
+
+    results = {
+        "Sample mean": x_bar,
+        "Estimated p": p_hat,
+    }
+    return results
+
+def main():
+    ################################ ---------- Exercise 8 - Part 1 ---------- ################################
+    data = np.array([56, 101, 78, 67, 93, 87, 64, 72, 80, 69])
+    a = -5
+    b = 5
+    k = 10
+    seed = 42
+    results = run_bootstraping(data, a, b, k, seed)
+    print(results)
+
+    print("Sample mean:", results["Sample mean"])
+    print("Estimated p:", results["Estimated p"])
+
+if __name__ == "__main__":
+    main()
