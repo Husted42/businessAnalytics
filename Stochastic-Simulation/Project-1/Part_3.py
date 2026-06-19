@@ -106,8 +106,9 @@ def simulate_interval(Q, start_state, end_state, interval=48):
 
 def estimate_Q(observation_states_matrix, Q_initial, interval=48):
     Q_current = Q_initial.copy()
-
+    i = 0
     while True:
+        i = i + 1
         N_ij = np.zeros_like(Q)
         S_i = np.zeros(len(Q))
 
@@ -145,7 +146,7 @@ def estimate_Q(observation_states_matrix, Q_initial, interval=48):
         print(f"Difference: {difference:.6f}")
 
         if difference < 1e-3:
-            return Q_new
+            return Q_new, i
 
         Q_current = Q_new
 
@@ -163,6 +164,11 @@ def main():
     for i in range(n):
         woman_states = simulate_woman_observations(Q)
         observation_states.append(woman_states)
+    
+    total_stages = 0
+    for i in range(len(observation_states)):
+        total_stages += len(observation_states[i])
+    print(total_stages)
     
     # I assume this is easier if it's a matrix:
     m = max(len(woman_states) for woman_states in observation_states)
@@ -184,14 +190,14 @@ def main():
     print("\n\n-------------- Task 13 - The algorithm --------------")
 
     Q_initial = np.array([
-        [-0.008, 0.004, 0.002, 0.001, 0.001],
-        [0.000, -0.012, 0.004, 0.004, 0.004],
-        [0.000, 0.000, -0.008, 0.004, 0.004],
-        [0.000, 0.000, 0.000, -0.008, 0.008],
+        [-0.008, 0.002, 0.002, 0.002, 0.002],
+        [0.000, -0.006, 0.002, 0.002, 0.002],
+        [0.000, 0.000, -0.004, 0.002, 0.002],
+        [0.000, 0.000, 0.000, -0.002, 0.002],
         [0.000, 0.000, 0.000, 0.000, 0.000]
     ])
 
-    Q_estimated = estimate_Q(
+    Q_estimated, i = estimate_Q(
         observation_states_matrix,
         Q_initial
     )
@@ -201,6 +207,7 @@ def main():
 
     print("\nEstimated Q:")
     print(Q_estimated)
+    print(i)
 
 
 
