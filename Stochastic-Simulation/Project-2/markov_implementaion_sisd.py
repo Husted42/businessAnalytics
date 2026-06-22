@@ -83,11 +83,11 @@ def simulate_sisd(N, I0, beta, gamma, mu, t_max=np.inf):
         # Decide event type
         u = np.random.rand()
 
-        print("u", u)
-        print("dt", dt)
-        print("infection", infection_rate / total_rate)
-        print("recovery", (recovery_rate) / total_rate)
-        print("Death", 1 - (infection_rate + recovery_rate) / total_rate)
+        # print("u", u)
+        # print("dt", dt)
+        # print("infection", infection_rate / total_rate)
+        # print("recovery", (recovery_rate) / total_rate)
+        # print("Death", 1 - (infection_rate + recovery_rate) / total_rate)
         
 
         if u < infection_rate / total_rate:
@@ -143,6 +143,7 @@ def run_many_simulations(N, I0, beta, gamma, mu, n_simulations, major_outbreak_t
     major_outbreaks = []
 
     for _ in range(n_simulations):
+        print("Running simulation for summary", _)
         times, states, events = simulate_sisd(N, I0, beta, gamma, mu)
 
         S = states[:, 0]
@@ -227,7 +228,15 @@ def plot_many_sisd_trajectories(N, I0, beta, gamma, mu, n_simulations, t_max=160
     """
     plt.figure(figsize=(10, 6))
 
+    # Fixed colors for each compartment
+    colors = {
+        "S": "tab:blue",
+        "I": "tab:orange",
+        "D": "tab:green"
+    }
+
     for _ in range(n_simulations):
+        print("Runing sim for plot", _)
         times, states, events = simulate_sisd(
             N=N,
             I0=I0,
@@ -241,28 +250,30 @@ def plot_many_sisd_trajectories(N, I0, beta, gamma, mu, n_simulations, t_max=160
         I = states[:, 1]
         D = states[:, 2]
 
-        plt.plot(times, S, alpha=0.15, linewidth=1)
-        plt.plot(times, I, alpha=0.15, linewidth=1)
-        plt.plot(times, D, alpha=0.15, linewidth=1)
+        plt.plot(times, S, color=colors["S"], alpha=0.15, linewidth=1)
+        plt.plot(times, I, color=colors["I"], alpha=0.15, linewidth=1)
+        plt.plot(times, D, color=colors["D"], alpha=0.15, linewidth=1)
 
     plt.xlabel("Time")
     plt.ylabel("Number of individuals")
     plt.title("Stochastic SISD trajectories")
     plt.grid(True, linestyle="--", alpha=0.5)
 
-    plt.plot([], [], label="Susceptible")
-    plt.plot([], [], label="Infected")
-    plt.plot([], [], label="Dead")
+    # Dummy plots for legend with matching colors
+    plt.plot([], [], color=colors["S"], label="Susceptible")
+    plt.plot([], [], color=colors["I"], label="Infected")
+    plt.plot([], [], color=colors["D"], label="Dead")
     plt.legend()
 
     plt.tight_layout()
     plt.savefig("assets_test/sisd_trajectories.png")
+    plt.show()
 
 def main():
     np.random.seed(42)
 
     # Population settings
-    N = 1000
+    N = 100000
     I0 = 20
 
     # Disease parameters
@@ -286,7 +297,7 @@ def main():
     )
 
     # Many simulations
-    n_simulations = 1000
+    n_simulations = 100
 
     results = run_many_simulations(
         N=N,
